@@ -9,7 +9,7 @@ BOT_TOKEN = API_TOKEN
 SOURCE_CHANNEL = '-1002406576806'
 CHANNEL_EXTRA_TIME = '-1002403326958'
 CHANNEL_REMOTE_OPEN = '-1002402258086'
-CHANNEL_OTHER_ISSUES = '-1002284946866'
+CHANNEL_OTHER_ISSUES = '-1002350584252'
 
 # Configurazione logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
