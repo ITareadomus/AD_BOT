@@ -3,7 +3,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 import logging, passkey
 
 # Token del bot fornito da BotFather
-BOT_TOKEN = (passkey.BOT_TOKEN)
+BOT_TOKEN = API_TOKEN
 
 # ID del canale principale e dei canali secondari
 SOURCE_CHANNEL = '-1002406576806'
