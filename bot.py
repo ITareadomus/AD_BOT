@@ -1,6 +1,6 @@
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
-import logging, passkey
+import logging
 
 # Token del bot fornito da BotFather
 BOT_TOKEN = API_TOKEN
