@@ -86,7 +86,7 @@ def main():
     application.add_handler(CommandHandler("start", start))
 
     # Gestore dei messaggi ricevuti dalla chat del bot
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.REPLY, handle_message))
+    application.add_handler(MessageHandler(filters.TEXT & filters.REPLY, handle_message))
 
     # Gestore delle risposte degli amministratori (anche per media)
     application.add_handler(MessageHandler(filters.TEXT & filters.REPLY, handle_response))
