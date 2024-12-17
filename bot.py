@@ -32,16 +32,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_message = ""
 
-    # Verifica se il messaggio è una risposta
-    if update.message.reply_to_message:
-        # Se è una risposta, non inviare il messaggio di avviso
-        return
-
-    # Se non è una risposta, invia il messaggio di avviso al canale appropriato
-    user = update.message.from_user
-    username = f"@{user.username}" if user.username else user.full_name
-    user_id = user.id  # ID dell'utente che ha inviato il messaggio
-
     # Verifica il tipo di messaggio
     if update.message.text and update.message.text.strip():
         user_message = update.message.text.lower().strip()
@@ -50,13 +40,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         user_message = "L'utente ha inviato un tipo di messaggio non riconosciuto."
 
-    # Invio del messaggio di avviso nei canali (dove necessario)
-    if any(keyword in user_message for keyword in ['tempo', 'pulire', 'extra']):
-        await context.bot.send_message(chat_id=CHANNEL_EXTRA_TIME, text="Il messaggio non è stato inviato")
-    elif any(keyword in user_message for keyword in ['apri', 'apertura', 'remoto']):
-        await context.bot.send_message(chat_id=CHANNEL_REMOTE_OPEN, text="Il messaggio non è stato inviato")
-    else:
-        await context.bot.send_message(chat_id=CHANNEL_OTHER_ISSUES, text="Il messaggio non è stato inviato")
+    user = update.message.from_user
+    username = f"@{user.username}" if user.username else user.full_name
+    user_id = user.id  # ID dell'utente che ha inviato il messaggio
 
     # Smista il messaggio al canale appropriato
     if any(keyword in user_message for keyword in ['tempo', 'pulire', 'extra']):
@@ -70,6 +56,21 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_requests[message.message_id] = user_id
 
     logger.info(f"Messaggio smistato da {username} al canale corretto.")
+
+async def handle_channel_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Gestisce i messaggi nei canali."""
+    if not update.channel_post:
+        logger.warning("Aggiornamento ricevuto non da un canale.")
+        return
+
+    channel_message = update.channel_post
+
+    # Se il messaggio non è una risposta a un altro messaggio, invia il messaggio di errore
+    if not channel_message.reply_to_message:
+        # Invia il messaggio di avviso nel canale
+        await update.channel_post.reply_text("Il messaggio non è stato inviato")
+
+    logger.info(f"Messaggio ricevuto nel canale: {channel_message.text}")
 
 async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Gestisce le risposte degli amministratori e le inoltra all'utente originale tramite il bot."""
@@ -102,8 +103,11 @@ def main():
     # Gestore dei comandi
     application.add_handler(CommandHandler("start", start))
 
-    # Gestore dei messaggi ricevuti dalla chat del bot
+    # Gestore dei messaggi ricevuti dalla chat del bot (quelli degli utenti)
     application.add_handler(MessageHandler(filters.TEXT & ~filters.REPLY, handle_message))
+
+    # Gestore dei messaggi nei canali
+    application.add_handler(MessageHandler(filters.TEXT, handle_channel_message))
 
     # Gestore delle risposte degli amministratori (anche per media)
     application.add_handler(MessageHandler(filters.TEXT & filters.REPLY, handle_response))
