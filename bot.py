@@ -24,6 +24,39 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "con la tua richiesta e lo smisterò al canale appropriato."
     )
 
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Gestisce i messaggi ricevuti direttamente dagli utenti e li smista nei canali appropriati."""
+    if not update.message:
+        logger.warning("Aggiornamento ricevuto senza un messaggio valido.")
+        return
+
+    user_message = ""
+
+    # Verifica il tipo di messaggio
+    if update.message.text and update.message.text.strip():
+        user_message = update.message.text.lower().strip()
+    elif update.message.caption and update.message.caption.strip():
+        user_message = f"Messaggio con media: {update.message.caption.strip()}"
+    else:
+        user_message = "L'utente ha inviato un tipo di messaggio non riconosciuto."
+
+    user = update.message.from_user
+    username = f"@{user.username}" if user.username else user.full_name
+    user_id = user.id  # ID dell'utente che ha inviato il messaggio
+
+    # Smista il messaggio al canale appropriato
+    if any(keyword in user_message for keyword in ['tempo', 'pulire', 'extra']):
+        message = await context.bot.send_message(chat_id=CHANNEL_EXTRA_TIME, text=f"{username}:\n{user_message}")
+    elif any(keyword in user_message for keyword in ['apri', 'apertura', 'remoto']):
+        message = await context.bot.send_message(chat_id=CHANNEL_REMOTE_OPEN, text=f"{username}:\n{user_message}")
+    else:
+        message = await context.bot.send_message(chat_id=CHANNEL_OTHER_ISSUES, text=f"{username}:\n{user_message}")
+
+    # Memorizza l'ID del messaggio e l'ID dell'utente
+    user_requests[message.message_id] = user_id
+
+    logger.info(f"Messaggio smistato da {username} al canale corretto.")
+
 async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Gestisce le risposte degli amministratori e le inoltra all'utente originale tramite il bot."""
     if update.channel_post:
@@ -49,31 +82,6 @@ async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         logger.warning("Messaggio non valido ricevuto.")
 
-async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Gestisce le risposte degli amministratori e le inoltra all'utente originale tramite il bot."""
-    if update.channel_post:
-        channel_message = update.channel_post
-
-        # Controlla se il messaggio è una risposta
-        if channel_message.reply_to_message and channel_message.reply_to_message.message_id in user_requests:
-            original_message_id = channel_message.reply_to_message.message_id
-            original_user_id = user_requests[original_message_id]
-
-            # Invia la risposta all'utente originario
-            await context.bot.send_message(
-                chat_id=original_user_id,
-                text=f"{channel_message.text}"
-            )
-        else:
-            # Avviso nel canale se il messaggio non è stato inviato come reply
-            await context.bot.send_message(
-                chat_id=channel_message.chat_id,
-                text="Il messaggio non è stato inviato! Per inviare una risposta all'utente, rispondi al messaggio originale!"
-            )
-            logger.warning("Messaggio di risposta ricevuto senza riferimento a un messaggio originale.")
-    else:
-        logger.warning("Messaggio non valido ricevuto.")
-
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     """Gestisce errori ed eccezioni."""
     logger.error("Eccezione durante l'aggiornamento: %s", context.error)
@@ -86,7 +94,7 @@ def main():
     application.add_handler(CommandHandler("start", start))
 
     # Gestore dei messaggi ricevuti dalla chat del bot
-    application.add_handler(MessageHandler(filters.TEXT & filters.REPLY, handle_message))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.REPLY, handle_message))
 
     # Gestore delle risposte degli amministratori (anche per media)
     application.add_handler(MessageHandler(filters.TEXT & filters.REPLY, handle_response))
