@@ -1,5 +1,5 @@
 from telegram import Update, ReplyKeyboardMarkup
-from telegram.ext import Updater, CommandHandler, MessageHandler, filters, CallbackContext
+from telegram.ext import Updater, CommandHandler, MessageHandler, filters, CallbackContext, passkey
 
 # ID del canale dove inviare il messaggio
 CHANNEL_ID = '-1002350584252'
@@ -38,7 +38,7 @@ def handle_reply(update: Update, context: CallbackContext) -> None:
 
 def main():
     # Inserisci il token del tuo bot
-    updater = Updater("7730646498:AAEvHUQjZSc_5OHoXiCwm64SDceyBEJO2go")
+    updater = Updater(passkey.TOKEN)
 
     # Ottieni il dispatcher per registrare i gestori
     dispatcher = updater.dispatcher
