@@ -60,12 +60,6 @@ async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text=f"Risposta ricevuta da {username}:\n{user_message}"
         )
 
-async def handle_pinned_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Gestisce i messaggi pinnati"""
-    if update.channel_post and update.channel_post.pinned_message:
-        pinned_message = update.channel_post.pinned_message.text
-        await update.message.reply_text(f"Questo è un messaggio pinnato: {pinned_message}")
-
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     """Gestisce errori ed eccezioni."""
     logger.error("Eccezione durante l'aggiornamento: %s", context.error)
@@ -82,9 +76,6 @@ def main():
 
     # Gestore delle risposte degli utenti
     application.add_handler(MessageHandler(filters.TEXT, handle_response))
-
-    # Gestore dei messaggi pinnati
-    application.add_handler(MessageHandler(filters.PINNED_MESSAGE, handle_pinned_message))
 
     # Gestore degli errori
     application.add_error_handler(error_handler)
