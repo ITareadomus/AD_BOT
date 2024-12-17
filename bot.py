@@ -109,7 +109,7 @@ def main():
     application.add_handler(MessageHandler(filters.TEXT, handle_message))
 
     # Gestore delle risposte degli amministratori (anche per media)
-    application.add_handler(MessageHandler(filters.ALL & filters.Reply, handle_response))  # Risposte dell'admin
+    application.add_handler(MessageHandler(filters.ALL & filters._Reply, handle_response))  # Risposte dell'admin
 
     # Gestore degli errori
     application.add_error_handler(error_handler)
