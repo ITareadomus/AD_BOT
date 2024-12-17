@@ -46,11 +46,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Smista il messaggio al canale appropriato
     if any(keyword in user_message for keyword in ['tempo', 'pulire', 'extra']):
-        message = await context.bot.send_message(chat_id=CHANNEL_EXTRA_TIME, text=f"Richiesta ricevuta da {username}:\n{user_message}")
+        message = await context.bot.send_message(chat_id=CHANNEL_EXTRA_TIME, text=f"{username}:\n{user_message}")
     elif any(keyword in user_message for keyword in ['apri', 'apertura', 'remoto']):
-        message = await context.bot.send_message(chat_id=CHANNEL_REMOTE_OPEN, text=f"Richiesta ricevuta da {username}:\n{user_message}")
+        message = await context.bot.send_message(chat_id=CHANNEL_REMOTE_OPEN, text=f"{username}:\n{user_message}")
     else:
-        message = await context.bot.send_message(chat_id=CHANNEL_OTHER_ISSUES, text=f"Segnalazione ricevuta da {username}:\n{user_message}")
+        message = await context.bot.send_message(chat_id=CHANNEL_OTHER_ISSUES, text=f"{username}:\n{user_message}")
 
     # Memorizza l'ID del messaggio e l'ID dell'utente
     user_requests[message.message_id] = user_id
