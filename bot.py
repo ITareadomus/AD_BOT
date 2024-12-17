@@ -48,10 +48,10 @@ def main():
     dispatcher.add_handler(CommandHandler("start", start))
 
     # Aggiungi un gestore per i messaggi di testo
-    dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_message))
+    dispatcher.add_handler(MessageHandler(filters.text & ~filters.command, handle_message))
 
     # Aggiungi un gestore per le risposte nel canale
-    dispatcher.add_handler(MessageHandler(Filters.reply, handle_reply))
+    dispatcher.add_handler(MessageHandler(filters.reply, handle_reply))
 
     # Avvia il bot
     updater.start_polling()
