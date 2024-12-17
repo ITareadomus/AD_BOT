@@ -73,6 +73,11 @@ async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 text=f"{channel_message.text}"
             )
         else:
+            # Avviso nel canale se il messaggio non è stato inviato come reply
+            await context.bot.send_message(
+                chat_id=channel_message.chat_id,
+                text="⚠️ Il messaggio non è stato inviato! Per inviare una risposta all'utente, rispondi al messaggio originale! ⚠️"
+            )
             logger.warning("Messaggio di risposta ricevuto senza riferimento a un messaggio originale.")
     else:
         logger.warning("Messaggio non valido ricevuto.")
