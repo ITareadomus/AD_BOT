@@ -85,7 +85,7 @@ def main():
     application.add_handler(CommandHandler("start", start))
 
     # Gestore dei messaggi dal canale principale
-    application.add_handler(MessageHandler(filters.Chat(chat_id=SOURCE_CHANNEL) & filters.UpdateType.CHANNEL_POST, handle_channel_message))
+    application.add_handler(MessageHandler(filters.Chat(chat_id=CHANNEL_OTHER_ISSUES) & filters.UpdateType.CHANNEL_POST, handle_channel_message))
 
     # Gestore delle risposte degli utenti
     application.add_handler(MessageHandler(filters.TEXT, handle_response))
