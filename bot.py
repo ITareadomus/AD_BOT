@@ -38,7 +38,7 @@ def handle_reply(update: Update, context: CallbackContext) -> None:
 
 def main():
     # Inserisci il token del tuo bot
-    updater = Updater('7730646498:AAEvHUQjZSc_5OHoXiCwm64SDceyBEJO2go')
+    updater = Updater("7730646498:AAEvHUQjZSc_5OHoXiCwm64SDceyBEJO2go")
 
     # Ottieni il dispatcher per registrare i gestori
     dispatcher = updater.dispatcher
