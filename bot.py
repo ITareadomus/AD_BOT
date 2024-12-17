@@ -37,8 +37,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Se è una risposta, non inviare il messaggio di avviso
         return
 
-    # Se non è una risposta, invia il messaggio di avviso
-    await update.message.reply_text("Il messaggio non è stato inviato")
+    # Se non è una risposta, invia il messaggio di avviso al canale appropriato
+    user = update.message.from_user
+    username = f"@{user.username}" if user.username else user.full_name
+    user_id = user.id  # ID dell'utente che ha inviato il messaggio
 
     # Verifica il tipo di messaggio
     if update.message.text and update.message.text.strip():
@@ -48,9 +50,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         user_message = "L'utente ha inviato un tipo di messaggio non riconosciuto."
 
-    user = update.message.from_user
-    username = f"@{user.username}" if user.username else user.full_name
-    user_id = user.id  # ID dell'utente che ha inviato il messaggio
+    # Invio del messaggio di avviso nei canali (dove necessario)
+    if any(keyword in user_message for keyword in ['tempo', 'pulire', 'extra']):
+        await context.bot.send_message(chat_id=CHANNEL_EXTRA_TIME, text="Il messaggio non è stato inviato")
+    elif any(keyword in user_message for keyword in ['apri', 'apertura', 'remoto']):
+        await context.bot.send_message(chat_id=CHANNEL_REMOTE_OPEN, text="Il messaggio non è stato inviato")
+    else:
+        await context.bot.send_message(chat_id=CHANNEL_OTHER_ISSUES, text="Il messaggio non è stato inviato")
 
     # Smista il messaggio al canale appropriato
     if any(keyword in user_message for keyword in ['tempo', 'pulire', 'extra']):
