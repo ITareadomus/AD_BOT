@@ -1,6 +1,7 @@
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 import logging, passkey
+from datetime import datetime  # Importa il modulo datetime
 
 # Token del bot fornito da BotFather
 BOT_TOKEN = (passkey.TOKEN)
@@ -26,38 +27,37 @@ async def handle_channel_message(update: Update, context: ContextTypes.DEFAULT_T
     """Gestisce i messaggi dal canale principale e li smista nei canali appropriati."""
     if update.channel_post and update.channel_post.text:
         text = update.channel_post.text.lower()
+        timestamp = update.channel_post.date.strftime('%Y-%m-%d %H:%M:%S')  # Formatta l'orario
         if any(keyword in text for keyword in ['tempo', 'pulire', 'extra']):
-            await context.bot.send_message(chat_id=CHANNEL_EXTRA_TIME, text=f"Richiesta ricevuta:\n{text}")
+            await context.bot.send_message(chat_id=CHANNEL_EXTRA_TIME, text=f"Richiesta ricevuta alle {timestamp}:\n{text}")
         elif any(keyword in text for keyword in ['apri', 'apertura', 'remoto']):
-            await context.bot.send_message(chat_id=CHANNEL_REMOTE_OPEN, text=f"Richiesta ricevuta:\n{text}")
+            await context.bot.send_message(chat_id=CHANNEL_REMOTE_OPEN, text=f"Richiesta ricevuta alle {timestamp}:\n{text}")
         else:
-            await context.bot.send_message(chat_id=CHANNEL_OTHER_ISSUES, text=f"Segnalazione ricevuta:\n{text}")
+            await context.bot.send_message(chat_id=CHANNEL_OTHER_ISSUES, text=f"Segnalazione ricevuta alle {timestamp}:\n{text}")
     else:
         logger.warning("Messaggio dal canale non contiene testo.")
 
 async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Gestisce le risposte degli utenti e smista i messaggi nei canali appropriati."""
-    user_message = update.message.text.lower()  # Ottieni il testo del messaggio inviato dall'utente
+    user_message = update.message.text.lower()
     user = update.message.from_user
     username = f"@{user.username}" if user.username else user.full_name
+    timestamp = update.message.date.strftime('%Y-%m-%d %H:%M:%S')  # Formatta l'orario
 
     if any(keyword in user_message for keyword in ['tempo', 'pulire', 'extra']):
-        # Risponde al canale che richiede più tempo
         await context.bot.send_message(
             chat_id=CHANNEL_EXTRA_TIME,
-            text=f"Risposta ricevuta da {username}:\n{user_message}"
+            text=f"Risposta ricevuta da {username} alle {timestamp}:\n{user_message}"
         )
     elif any(keyword in user_message for keyword in ['apri', 'apertura', 'remoto']):
-        # Risponde al canale che richiede apertura da remoto
         await context.bot.send_message(
             chat_id=CHANNEL_REMOTE_OPEN,
-            text=f"Risposta ricevuta da {username}:\n{user_message}"
+            text=f"Risposta ricevuta da {username} alle {timestamp}:\n{user_message}"
         )
     else:
-        # Risponde al canale che segnala altri problemi
         await context.bot.send_message(
             chat_id=CHANNEL_OTHER_ISSUES,
-            text=f"Risposta ricevuta da {username}:\n{user_message}"
+            text=f"Risposta ricevuta da {username} alle {timestamp}:\n{user_message}"
         )
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
