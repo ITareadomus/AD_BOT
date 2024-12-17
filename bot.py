@@ -26,25 +26,12 @@ async def handle_channel_message(update: Update, context: ContextTypes.DEFAULT_T
     """Gestisce i messaggi dal canale principale e li smista nei canali appropriati."""
     if update.channel_post and update.channel_post.text:
         text = update.channel_post.text.lower()
-        user_message = update.channel_post.text
-        user_id = update.channel_post.from_user.id  # ID dell'utente che ha inviato il messaggio nel canale
-
         if any(keyword in text for keyword in ['tempo', 'pulire', 'extra']):
-            message = await context.bot.send_message(chat_id=CHANNEL_EXTRA_TIME, text=f"Richiesta ricevuta:\n{user_message}")
-            # Salviamo l'ID del messaggio in modo che possa essere utilizzato per rispondere
-            context.chat_data['message_id'] = message.message_id
-            context.chat_data['user_id'] = user_id  # Memorizziamo l'ID dell'utente per inviare la risposta
-
+            await context.bot.send_message(chat_id=CHANNEL_EXTRA_TIME, text=f"Richiesta ricevuta:\n{text}")
         elif any(keyword in text for keyword in ['apri', 'apertura', 'remoto']):
-            message = await context.bot.send_message(chat_id=CHANNEL_REMOTE_OPEN, text=f"Richiesta ricevuta:\n{user_message}")
-            context.chat_data['message_id'] = message.message_id
-            context.chat_data['user_id'] = user_id
-
+            await context.bot.send_message(chat_id=CHANNEL_REMOTE_OPEN, text=f"Richiesta ricevuta:\n{text}")
         else:
-            message = await context.bot.send_message(chat_id=CHANNEL_OTHER_ISSUES, text=f"Segnalazione ricevuta:\n{user_message}")
-            context.chat_data['message_id'] = message.message_id
-            context.chat_data['user_id'] = user_id
-
+            await context.bot.send_message(chat_id=CHANNEL_OTHER_ISSUES, text=f"Segnalazione ricevuta:\n{text}")
     else:
         logger.warning("Messaggio dal canale non contiene testo.")
 
@@ -53,25 +40,31 @@ async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text.lower()  # Ottieni il testo del messaggio inviato dall'utente
     user = update.message.from_user
     username = f"@{user.username}" if user.username else user.full_name
-    user_id = user.id  # ID dell'utente che invia la risposta
 
-    # Recupera l'ID del messaggio e l'ID dell'utente dal dizionario 'chat_data'
-    original_message_id = context.chat_data.get('message_id')
-    original_user_id = context.chat_data.get('user_id')
-
-    if original_message_id and original_user_id:
-        # Il bot invia la risposta all'utente che ha inviato il messaggio originale
+    if any(keyword in user_message for keyword in ['tempo', 'pulire', 'extra']):
+        # Risponde al canale che richiede più tempo
         await context.bot.send_message(
-            chat_id=original_user_id,
+            chat_id=CHANNEL_EXTRA_TIME,
+            text=f"Risposta ricevuta da {username}:\n{user_message}"
+        )
+    elif any(keyword in user_message for keyword in ['apri', 'apertura', 'remoto']):
+        # Risponde al canale che richiede apertura da remoto
+        await context.bot.send_message(
+            chat_id=CHANNEL_REMOTE_OPEN,
+            text=f"Risposta ricevuta da {username}:\n{user_message}"
+        )
+    else:
+        # Risponde al canale che segnala altri problemi
+        await context.bot.send_message(
+            chat_id=CHANNEL_OTHER_ISSUES,
             text=f"Risposta ricevuta da {username}:\n{user_message}"
         )
 
-        # Se l'admin risponde nel canale, il bot inoltra la risposta
-        await context.bot.send_message(
-            chat_id=CHANNEL_OTHER_ISSUES,  # Puoi cambiarlo a uno dei tuoi canali specifici
-            text=f"Risposta per l'utente {username}: {user_message}",
-            reply_to_message_id=original_message_id  # Aggiunge la funzionalità di "reply" al messaggio originale
-        )
+async def handle_pinned_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Gestisce i messaggi pinnati"""
+    if update.channel_post and update.channel_post.pinned_message:
+        pinned_message = update.channel_post.pinned_message.text
+        await update.message.reply_text(f"Questo è un messaggio pinnato: {pinned_message}")
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     """Gestisce errori ed eccezioni."""
@@ -85,10 +78,13 @@ def main():
     application.add_handler(CommandHandler("start", start))
 
     # Gestore dei messaggi dal canale principale
-    application.add_handler(MessageHandler(filters.Chat(chat_id=CHANNEL_OTHER_ISSUES) & filters.UpdateType.CHANNEL_POST, handle_channel_message))
+    application.add_handler(MessageHandler(filters.Chat(chat_id=SOURCE_CHANNEL) & filters.UpdateType.CHANNEL_POST, handle_channel_message))
 
     # Gestore delle risposte degli utenti
     application.add_handler(MessageHandler(filters.TEXT, handle_response))
+
+    # Gestore dei messaggi pinnati
+    application.add_handler(MessageHandler(filters.PINNED_MESSAGE, handle_pinned_message))
 
     # Gestore degli errori
     application.add_error_handler(error_handler)
