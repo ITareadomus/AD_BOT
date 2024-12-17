@@ -1,5 +1,5 @@
 from telegram import Update, Bot, Message
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
+from telegram.ext import Updater, CommandHandler, MessageHandler, filters, CallbackContext
 import logging
 
 # Configura il logging
