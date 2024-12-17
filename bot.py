@@ -38,24 +38,26 @@ async def handle_channel_message(update: Update, context: ContextTypes.DEFAULT_T
 async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Gestisce le risposte degli utenti e smista i messaggi nei canali appropriati."""
     user_message = update.message.text.lower()  # Ottieni il testo del messaggio inviato dall'utente
+    user = update.message.from_user
+    username = f"@{user.username}" if user.username else user.full_name
 
     if any(keyword in user_message for keyword in ['tempo', 'pulire', 'extra']):
         # Risponde al canale che richiede più tempo
         await context.bot.send_message(
             chat_id=CHANNEL_EXTRA_TIME,
-            text=f"Risposta ricevuta: {user_message}"
+            text=f"Risposta ricevuta da {username}:\n{user_message}"
         )
     elif any(keyword in user_message for keyword in ['apri', 'apertura', 'remoto']):
         # Risponde al canale che richiede apertura da remoto
         await context.bot.send_message(
             chat_id=CHANNEL_REMOTE_OPEN,
-            text=f"Risposta ricevuta: {user_message}"
+            text=f"Risposta ricevuta da {username}:\n{user_message}"
         )
     else:
         # Risponde al canale che segnala altri problemi
         await context.bot.send_message(
             chat_id=CHANNEL_OTHER_ISSUES,
-            text=f"Risposta ricevuta: {user_message}"
+            text=f"Risposta ricevuta da {username}:\n{user_message}"
         )
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
