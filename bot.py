@@ -27,11 +27,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Gestisce i messaggi ricevuti direttamente dagli utenti e li smista nei canali appropriati."""
     if not update.message:
-        # Invia un messaggio di avviso nel canale che la risposta non è stata inviata correttamente
-            await context.bot.send_message(
-                chat_id=update.channel_post.chat.id,
-                text="⚠️ La risposta non è stata inviata correttamente. Si prega di utilizzare il comando 'reply' per rispondere a un messaggio."
-            )
         logger.warning("Aggiornamento ricevuto senza un messaggio valido.")
         return
 
@@ -78,12 +73,15 @@ async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 text=f"{channel_message.text}"
             )
         else:
-            # Invia un messaggio di avviso nel canale che la risposta non è stata inviata correttamente
-            await context.bot.send_message(
-                chat_id=update.channel_post.chat.id,
-                text="⚠️ La risposta non è stata inviata correttamente. Si prega di utilizzare il comando 'reply' per rispondere a un messaggio."
-            )
-            logger.warning("Messaggio di risposta ricevuto senza riferimento a un messaggio originale.")
+            # Controlla se la risposta non è un reply valido (per evitare falsi positivi)
+            if channel_message.reply_to_message is None:
+                # Invia un messaggio di avviso nel canale che la risposta non è stata inviata correttamente
+                await context.bot.send_message(
+                    chat_id=update.channel_post.chat.id,
+                    text="⚠️ La risposta non è stata inviata correttamente. Si prega di utilizzare il comando 'reply' per rispondere a un messaggio."
+                )
+            else:
+                logger.warning("Messaggio di risposta ricevuto senza riferimento a un messaggio originale.")
     else:
         logger.warning("Messaggio non valido ricevuto.")
 
@@ -111,3 +109,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
