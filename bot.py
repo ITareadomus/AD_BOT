@@ -27,6 +27,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Gestisce i messaggi ricevuti direttamente dagli utenti e li smista nei canali appropriati."""
     if not update.message:
+        # Invia un messaggio di avviso nel canale che la risposta non è stata inviata correttamente
+            await context.bot.send_message(
+                chat_id=update.channel_post.chat.id,
+                text="⚠️ La risposta non è stata inviata correttamente. Si prega di utilizzare il comando 'reply' per rispondere a un messaggio."
+            )
         logger.warning("Aggiornamento ricevuto senza un messaggio valido.")
         return
 
