@@ -14,6 +14,9 @@ CHANNEL_OTHER_ISSUES = '-1002350584252'
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Dizionario per tracciare gli utenti che inviano richieste
+user_requests = {}
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Risponde al comando /start."""
     await update.message.reply_text(
@@ -50,48 +53,30 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         message = await context.bot.send_message(chat_id=CHANNEL_OTHER_ISSUES, text=f"Segnalazione ricevuta da {username}:\n{user_message}")
 
     # Memorizza l'ID del messaggio e l'ID dell'utente
-    context.user_data['message_id'] = message.message_id
-    context.user_data['user_id'] = user_id
+    user_requests[message.message_id] = user_id
 
     logger.info(f"Messaggio smistato da {username} al canale corretto.")
 
+    # Conferma la ricezione all'utente
+    await update.message.reply_text("La tua richiesta è stata inviata. Riceverai una risposta appena possibile.")
+
 async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Gestisce le risposte degli amministratori e le inoltra all'utente originale tramite il bot."""
-    if update.message:
-        user_message = ""  # Inizializza il messaggio dell'admin
+    if update.channel_post:
+        channel_message = update.channel_post
 
-        # Se il messaggio dell'admin è di tipo testo
-        if update.message.text:
-            user_message = update.message.text.lower()
-        # Se il messaggio dell'admin è un media (foto, video) con didascalia
-        elif update.message.caption:
-            user_message = f"Risposta con media: {update.message.caption}"  # Usa la didascalia
-        else:
-            user_message = "L'admin ha inviato un messaggio non di testo."
+        # Controlla se il messaggio è una risposta
+        if channel_message.reply_to_message and channel_message.reply_to_message.message_id in user_requests:
+            original_message_id = channel_message.reply_to_message.message_id
+            original_user_id = user_requests[original_message_id]
 
-        user = update.message.from_user
-        username = f"@{user.username}" if user.username else user.full_name
-        user_id = user.id  # ID dell'admin che sta rispondendo
-
-        # Recupera l'ID del messaggio originale e l'ID dell'utente
-        original_message_id = context.user_data.get('message_id')
-        original_user_id = context.user_data.get('user_id')
-
-        if original_message_id and original_user_id:
-            # Risponde direttamente all'utente che ha inviato il messaggio originale
+            # Invia la risposta all'utente originario
             await context.bot.send_message(
                 chat_id=original_user_id,
-                text=f"Risposta ricevuta da {username}:\n{user_message}"
-            )
-
-            # Se l'admin risponde nel canale, inoltra la risposta anche al canale di smistamento
-            await context.bot.send_message(
-                chat_id=CHANNEL_OTHER_ISSUES,  # Puoi cambiare con il canale appropriato
-                text=f"Risposta per l'utente {username}: {user_message}",
-                reply_to_message_id=original_message_id  # Rispondi al messaggio originale
+                text=f"Risposta alla tua richiesta:\n{channel_message.text}"
             )
         else:
-            logger.warning("Dati del messaggio originale non trovati. Verifica che i dati siano stati memorizzati correttamente.")
+            logger.warning("Messaggio di risposta ricevuto senza riferimento a un messaggio originale.")
     else:
         logger.warning("Messaggio non valido ricevuto.")
 
@@ -107,10 +92,10 @@ def main():
     application.add_handler(CommandHandler("start", start))
 
     # Gestore dei messaggi ricevuti dalla chat del bot
-    application.add_handler(MessageHandler(filters.TEXT, handle_message))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.REPLY, handle_message))
 
     # Gestore delle risposte degli amministratori (anche per media)
-    application.add_handler(MessageHandler(filters.ALL & filters.REPLY, handle_response))  # Risposte dell'admin
+    application.add_handler(MessageHandler(filters.ALL & filters.REPLY & filters.CHANNEL, handle_response))
 
     # Gestore degli errori
     application.add_error_handler(error_handler)
@@ -119,3 +104,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
