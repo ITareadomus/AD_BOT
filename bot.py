@@ -1,63 +1,103 @@
-from telegram import Update, ReplyKeyboardMarkup
-from telegram.ext import Updater, CommandHandler, MessageHandler, filters, CallbackContext
-import passkey
+from telegram import Update, Message
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+import logging, passkey
 
-# ID del canale dove inviare il messaggio
-CHANNEL_ID = '-1002350584252'
+# Token del bot fornito da BotFather
+BOT_TOKEN = (passkey.TOKEN)
 
-# ID dell'amministratore del canale
-ADMIN_ID = 7799323246 # Sostituisci con l'ID dell'amministratore
+# ID dei canali di smistamento
+CHANNEL_EXTRA_TIME = '-1002403326958'
+CHANNEL_REMOTE_OPEN = '-1002402258086'
+CHANNEL_OTHER_ISSUES = '-1002350584252'
 
-# Funzione per iniziare il bot
-def start(update: Update, context: CallbackContext) -> None:
-    update.message.reply_text("Ciao! Mandami il tuo messaggio e lo inoltrerò al canale.")
+# Configurazione logging
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-# Funzione per gestire i messaggi degli utenti
-def handle_message(update: Update, context: CallbackContext) -> None:
-    # Prendi il messaggio dell'utente
-    user_message = update.message.text
-    user_id = update.message.from_user.id
+# Dizionario per tracciare gli utenti che inviano richieste
+user_requests = {}
 
-    # Invia il messaggio al canale
-    context.bot.send_message(chat_id=CHANNEL_ID, text=f"Messaggio da {update.message.from_user.first_name} ({user_id}): {user_message}", reply_markup=None)
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Risponde al comando /start."""
+    await update.message.reply_text(
+        "Ciao! Sono il bot per la gestione degli appartamenti. Inviami un messaggio "
+        "con la tua richiesta e lo smisterò al canale appropriato."
+    )
 
-    # Rispondi all'utente che il messaggio è stato inoltrato
-    update.message.reply_text("Il tuo messaggio è stato inviato al canale. Attendi una risposta.")
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Gestisce i messaggi ricevuti direttamente dagli utenti e li smista nei canali appropriati."""
+    if not update.message:
+        logger.warning("Aggiornamento ricevuto senza un messaggio valido.")
+        return
 
-# Funzione per gestire le risposte nel canale
-def handle_reply(update: Update, context: CallbackContext) -> None:
-    # Verifica se la risposta è un "reply" (risposta a un messaggio specifico)
-    if update.message.reply_to_message:
-        # Prendi l'ID dell'utente che ha inviato il messaggio originale
-        original_user_id = int(update.message.reply_to_message.text.split(":")[1].split(")")[0])
+    user_message = ""
 
-        # Invia la risposta all'utente originale
-        context.bot.send_message(chat_id=original_user_id, text=f"Risposta dell'amministratore: {update.message.text}")
+    # Verifica il tipo di messaggio
+    if update.message.text and update.message.text.strip():
+        user_message = update.message.text.lower().strip()
+    elif update.message.caption and update.message.caption.strip():
+        user_message = f"Messaggio con media: {update.message.caption.strip()}"
     else:
-        # Se non è una risposta, invia il messaggio di default
-        update.message.reply_text("Messaggio non inviato correttamente. Si prega di rispondere utilizzando la funzione di reply.")
+        user_message = "L'utente ha inviato un tipo di messaggio non riconosciuto."
+
+    user = update.message.from_user
+    username = f"@{user.username}" if user.username else user.full_name
+    user_id = user.id  # ID dell'utente che ha inviato il messaggio
+
+    # Smista il messaggio al canale appropriato
+    if any(keyword in user_message for keyword in ['tempo', 'pulire', 'extra']):
+        message = await context.bot.send_message(chat_id=CHANNEL_EXTRA_TIME, text=f"{username}:\n{user_message}")
+    elif any(keyword in user_message for keyword in ['apri', 'apertura', 'remoto']):
+        message = await context.bot.send_message(chat_id=CHANNEL_REMOTE_OPEN, text=f"{username}:\n{user_message}")
+    else:
+        message = await context.bot.send_message(chat_id=CHANNEL_OTHER_ISSUES, text=f"{username}:\n{user_message}")
+
+    # Memorizza l'ID del messaggio e l'ID dell'utente
+    user_requests[message.message_id] = user_id
+
+    logger.info(f"Messaggio smistato da {username} al canale corretto.")
+
+async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Gestisce le risposte degli amministratori e le inoltra all'utente originale tramite il bot."""
+    if update.channel_post:
+        channel_message = update.channel_post
+
+        # Controlla se il messaggio è una risposta
+        if channel_message.reply_to_message and channel_message.reply_to_message.message_id in user_requests:
+            original_message_id = channel_message.reply_to_message.message_id
+            original_user_id = user_requests[original_message_id]
+
+            # Invia la risposta all'utente originario
+            await context.bot.send_message(
+                chat_id=original_user_id,
+                text=f"{channel_message.text}"
+            )
+        else:
+            logger.warning("Messaggio di risposta ricevuto senza riferimento a un messaggio originale.")
+    else:
+        logger.warning("Messaggio non valido ricevuto.")
+
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
+    """Gestisce errori ed eccezioni."""
+    logger.error("Eccezione durante l'aggiornamento: %s", context.error)
 
 def main():
-    # Inserisci il token del tuo bot
-    updater = Updater(passkey.TOKEN)
+    """Avvia il bot."""
+    application = Application.builder().token(BOT_TOKEN).build()
 
-    # Ottieni il dispatcher per registrare i gestori
-    dispatcher = updater.dispatcher
+    # Gestore dei comandi
+    application.add_handler(CommandHandler("start", start))
 
-    # Aggiungi un gestore per il comando /start
-    dispatcher.add_handler(CommandHandler("start", start))
+    # Gestore dei messaggi ricevuti dalla chat del bot
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.REPLY, handle_message))
 
-    # Aggiungi un gestore per i messaggi di testo
-    dispatcher.add_handler(MessageHandler(filters.text & ~filters.command, handle_message))
+    # Gestore delle risposte degli amministratori (anche per media)
+    application.add_handler(MessageHandler(filters.TEXT & filters.REPLY, handle_response))
 
-    # Aggiungi un gestore per le risposte nel canale
-    dispatcher.add_handler(MessageHandler(filters.reply, handle_reply))
+    # Gestore degli errori
+    application.add_error_handler(error_handler)
 
-    # Avvia il bot
-    updater.start_polling()
-
-    # Mantieni il bot in esecuzione
-    updater.idle()
+    application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
     main()
