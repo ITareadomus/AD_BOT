@@ -10,6 +10,9 @@ CHANNEL_EXTRA_TIME = '-1002403326958'
 CHANNEL_REMOTE_OPEN = '-1002402258086'
 CHANNEL_OTHER_ISSUES = '-1002350584252'
 
+# ID degli amministratori (può essere un ID singolo o una lista di ID)
+ADMIN_ID = 123456789  # Modifica con l'ID dell'amministratore
+
 # Configurazione logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -77,6 +80,24 @@ async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         logger.warning("Messaggio non valido ricevuto.")
 
+async def handle_error(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Gestisce i messaggi non in risposta e invia un errore all'amministratore."""
+    if update.message and not update.message.reply_to_message:
+        user = update.message.from_user
+        username = f"@{user.username}" if user.username else user.full_name
+        user_message = update.message.text or "Messaggio senza contenuto"
+
+        # Notifica all'amministratore
+        await context.bot.send_message(
+            chat_id=ADMIN_ID,
+            text=f"Errore: {username} ha inviato un messaggio senza rispondere a un messaggio precedente.\nMessaggio: {user_message}"
+        )
+
+        # Risposta all'utente che ha commesso l'errore
+        await update.message.reply_text(
+            "Errore: devi rispondere a un messaggio precedente per inviare una richiesta."
+        )
+
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     """Gestisce errori ed eccezioni."""
     logger.error("Eccezione durante l'aggiornamento: %s", context.error)
@@ -88,13 +109,16 @@ def main():
     # Gestore dei comandi
     application.add_handler(CommandHandler("start", start))
 
-    # Gestore dei messaggi ricevuti dalla chat del bot
+    # Gestore dei messaggi ricevuti dalla chat del bot (messaggi non in risposta)
     application.add_handler(MessageHandler(filters.TEXT & ~filters.REPLY, handle_message))
 
     # Gestore delle risposte degli amministratori (anche per media)
     application.add_handler(MessageHandler(filters.TEXT & filters.REPLY, handle_response))
 
-    # Gestore degli errori
+    # Gestore degli errori per messaggi non in risposta
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.REPLY, handle_error))
+
+    # Gestore degli errori generali
     application.add_error_handler(error_handler)
 
     application.run_polling(allowed_updates=Update.ALL_TYPES)
