@@ -1,6 +1,6 @@
 from telegram import Update, Bot, Message
 from telegram.ext import Updater, CommandHandler, MessageHandler, filters, CallbackContext
-import logging
+import logging, passkey
 
 # Configura il logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -51,7 +51,7 @@ def start(update: Update, context: CallbackContext):
 # Funzione principale per configurare ed eseguire il bot
 def main():
     # Inserisci il token del tuo bot
-    BOT_TOKEN = '7730646498:AAEvHUQjZSc_5OHoXiCwm64SDceyBEJO2go'
+    BOT_TOKEN = (passkey.TOKEN)
 
     updater = Updater(BOT_TOKEN)
     dispatcher = updater.dispatcher
