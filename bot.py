@@ -57,9 +57,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     logger.info(f"Messaggio smistato da {username} al canale corretto.")
 
-    # Conferma la ricezione all'utente
-    await update.message.reply_text("La tua richiesta è stata inviata. Riceverai una risposta appena possibile.")
-
 async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Gestisce le risposte degli amministratori e le inoltra all'utente originale tramite il bot."""
     if update.channel_post:
@@ -73,7 +70,7 @@ async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Invia la risposta all'utente originario
             await context.bot.send_message(
                 chat_id=original_user_id,
-                text=f"Risposta alla tua richiesta:\n{channel_message.text}"
+                text=f"{channel_message.text}"
             )
         else:
             logger.warning("Messaggio di risposta ricevuto senza riferimento a un messaggio originale.")
