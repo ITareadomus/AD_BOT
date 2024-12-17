@@ -23,36 +23,37 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Gestisce i messaggi ricevuti direttamente dagli utenti e li smista nei canali appropriati."""
-    if update.message:
-        user_message = ""  # Inizializza il messaggio dell'utente
+    if not update.message:
+        logger.warning("Aggiornamento ricevuto senza un messaggio valido.")
+        return
 
-        # Se il messaggio è di tipo testo
-        if update.message.text:
-            user_message = update.message.text.lower()  # Ottieni il testo del messaggio inviato dall'utente
-        # Se il messaggio è un media (es. foto, video) con didascalia
-        elif update.message.caption:
-            user_message = f"Messaggio con media: {update.message.caption}"  # Usa la didascalia per i media
-        else:
-            # Se il messaggio non è testo o media con didascalia, invia un messaggio generico
-            user_message = "L'admin ha inviato un tipo di messaggio non di testo."
+    user_message = ""
 
-        user = update.message.from_user
-        username = f"@{user.username}" if user.username else user.full_name
-        user_id = user.id  # ID dell'utente che ha inviato il messaggio
-
-        # Smista il messaggio al canale appropriato
-        if any(keyword in user_message for keyword in ['tempo', 'pulire', 'extra']):
-            message = await context.bot.send_message(chat_id=CHANNEL_EXTRA_TIME, text=f"Richiesta ricevuta da {username}:\n{user_message}")
-        elif any(keyword in user_message for keyword in ['apri', 'apertura', 'remoto']):
-            message = await context.bot.send_message(chat_id=CHANNEL_REMOTE_OPEN, text=f"Richiesta ricevuta da {username}:\n{user_message}")
-        else:
-            message = await context.bot.send_message(chat_id=CHANNEL_OTHER_ISSUES, text=f"Segnalazione ricevuta da {username}:\n{user_message}")
-
-        # Memorizza l'ID del messaggio e l'ID dell'utente per rispondere successivamente
-        context.chat_data['message_id'] = message.message_id
-        context.chat_data['user_id'] = user_id
+    # Verifica il tipo di messaggio
+    if update.message.text and update.message.text.strip():
+        user_message = update.message.text.lower().strip()
+    elif update.message.caption and update.message.caption.strip():
+        user_message = f"Messaggio con media: {update.message.caption.strip()}"
     else:
-        logger.warning("Messaggio vuoto o non valido ricevuto.")
+        user_message = "L'utente ha inviato un tipo di messaggio non riconosciuto."
+
+    user = update.message.from_user
+    username = f"@{user.username}" if user.username else user.full_name
+    user_id = user.id  # ID dell'utente che ha inviato il messaggio
+
+    # Smista il messaggio al canale appropriato
+    if any(keyword in user_message for keyword in ['tempo', 'pulire', 'extra']):
+        message = await context.bot.send_message(chat_id=CHANNEL_EXTRA_TIME, text=f"Richiesta ricevuta da {username}:\n{user_message}")
+    elif any(keyword in user_message for keyword in ['apri', 'apertura', 'remoto']):
+        message = await context.bot.send_message(chat_id=CHANNEL_REMOTE_OPEN, text=f"Richiesta ricevuta da {username}:\n{user_message}")
+    else:
+        message = await context.bot.send_message(chat_id=CHANNEL_OTHER_ISSUES, text=f"Segnalazione ricevuta da {username}:\n{user_message}")
+
+    # Memorizza l'ID del messaggio e l'ID dell'utente
+    context.user_data['message_id'] = message.message_id
+    context.user_data['user_id'] = user_id
+
+    logger.info(f"Messaggio smistato da {username} al canale corretto.")
 
 async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Gestisce le risposte degli amministratori e le inoltra all'utente originale tramite il bot."""
@@ -73,8 +74,8 @@ async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_id = user.id  # ID dell'admin che sta rispondendo
 
         # Recupera l'ID del messaggio originale e l'ID dell'utente
-        original_message_id = context.chat_data.get('message_id')
-        original_user_id = context.chat_data.get('user_id')
+        original_message_id = context.user_data.get('message_id')
+        original_user_id = context.user_data.get('user_id')
 
         if original_message_id and original_user_id:
             # Risponde direttamente all'utente che ha inviato il messaggio originale
@@ -109,7 +110,7 @@ def main():
     application.add_handler(MessageHandler(filters.TEXT, handle_message))
 
     # Gestore delle risposte degli amministratori (anche per media)
-    application.add_handler(MessageHandler(filters.ALL & filters._Reply, handle_response))  # Risposte dell'admin
+    application.add_handler(MessageHandler(filters.ALL & filters.REPLY, handle_response))  # Risposte dell'admin
 
     # Gestore degli errori
     application.add_error_handler(error_handler)
