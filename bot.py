@@ -45,19 +45,19 @@ async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Risponde al canale che richiede più tempo
         await context.bot.send_message(
             chat_id=CHANNEL_EXTRA_TIME,
-            text=f"Risposta ricevuta da {username}:\n{user_message}"
+            text=f"{username}:\n{user_message}"
         )
     elif any(keyword in user_message for keyword in ['apri', 'apertura', 'remoto']):
         # Risponde al canale che richiede apertura da remoto
         await context.bot.send_message(
             chat_id=CHANNEL_REMOTE_OPEN,
-            text=f"Risposta ricevuta da {username}:\n{user_message}"
+            text=f"{username}:\n{user_message}"
         )
     else:
         # Risponde al canale che segnala altri problemi
         await context.bot.send_message(
             chat_id=CHANNEL_OTHER_ISSUES,
-            text=f"Risposta ricevuta da {username}:\n{user_message}"
+            text=f"{username}:\n{user_message}"
         )
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
