@@ -1,5 +1,5 @@
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 import logging, passkey
 
 # Token del bot fornito da BotFather
@@ -77,18 +77,18 @@ async def handle_problem_selection(update: Update, context: ContextTypes.DEFAULT
     query = update.callback_query
     await query.answer()  # Conferma che il bottone è stato premuto
 
-    user_id = query.from_user.id
-    username = f"@{query.from_user.username}" if query.from_user.username else query.from_user.full_name
+    user = query.from_user
+    username = f"@{user.username}" if user.username else user.full_name
 
     if query.data == "extra_time":
         await query.edit_message_text("Hai selezionato: Tempo extra. La tua richiesta sarà elaborata.")
-        await context.bot.send_message(chat_id=CHANNEL_EXTRA_TIME, text=f"Richiesta da {username}: Tempo extra.")
+        await context.bot.send_message(chat_id=CHANNEL_EXTRA_TIME, text=f"Un utente ha selezionato 'Tempo extra': {username}")
     elif query.data == "remote_open":
         await query.edit_message_text("Hai selezionato: Non riesco ad entrare. La tua richiesta sarà elaborata.")
-        await context.bot.send_message(chat_id=CHANNEL_REMOTE_OPEN, text=f"Richiesta da {username}: Non riesco ad entrare.")
+        await context.bot.send_message(chat_id=CHANNEL_REMOTE_OPEN, text=f"Un utente ha selezionato 'Non riesco ad entrare': {username}")
     elif query.data == "other_issues":
         await query.edit_message_text("Hai selezionato: Altro. La tua richiesta sarà elaborata.")
-        await context.bot.send_message(chat_id=CHANNEL_OTHER_ISSUES, text=f"Richiesta da {username}: Altro.")
+        await context.bot.send_message(chat_id=CHANNEL_OTHER_ISSUES, text=f"Un utente ha selezionato 'Altro': {username}")
 
 async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Gestisce le risposte degli amministratori e le inoltra all'utente originale tramite il bot."""
@@ -128,7 +128,7 @@ def main():
     application.add_handler(MessageHandler(filters.TEXT & filters.REPLY, handle_response))
 
     # Gestore dei callback dei pulsanti
-    application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, handle_problem_selection))
+    application.add_handler(CallbackQueryHandler(handle_problem_selection))
 
     # Gestore degli errori
     application.add_error_handler(error_handler)
