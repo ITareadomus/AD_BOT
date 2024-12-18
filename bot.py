@@ -74,10 +74,19 @@ async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         else:
             # Se il messaggio non è valido, invia un avviso nel canale
-            await context.bot.send_message(
-                chat_id=channel_message.chat_id,  # ID del canale dove è stato inviato il messaggio
-                text="Non è un messaggio valido"
-            )
+            try:
+                # Log del chat_id del canale
+                logger.info(f"Canale di destinazione: {channel_message.chat_id}")
+                
+                # Invia il messaggio di avviso
+                await context.bot.send_message(
+                    chat_id=channel_message.chat_id,  # ID del canale dove è stato inviato il messaggio
+                    text="Non è un messaggio valido"
+                )
+                logger.info("Messaggio di avviso inviato correttamente.")
+            except Exception as e:
+                # Gestisci eventuali errori durante l'invio del messaggio
+                logger.error(f"Errore durante l'invio del messaggio di avviso: {e}")
             logger.warning("Messaggio di risposta ricevuto senza riferimento a un messaggio originale.")
     else:
         logger.warning("Messaggio non valido ricevuto.")
@@ -107,4 +116,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
