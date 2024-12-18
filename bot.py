@@ -12,7 +12,7 @@ def handle_message(update: Update, context):
 # Funzione principale per avviare il bot
 def main():
     # Inserisci il tuo token fornito da BotFather
-    BOT_TOKEN = "INSERISCI_IL_TUO_TOKEN_QUI"
+    BOT_TOKEN = "7730646498:AAEvHUQjZSc_5OHoXiCwm64SDceyBEJO2go"
 
     # Crea l'applicazione del bot
     app = ApplicationBuilder().token(BOT_TOKEN).build()
