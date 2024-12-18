@@ -1,4 +1,4 @@
-from telegram import Update, Message
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 import logging, passkey
 
@@ -51,11 +51,44 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         message = await context.bot.send_message(chat_id=CHANNEL_REMOTE_OPEN, text=f"{username}:\n{user_message}")
     else:
         message = await context.bot.send_message(chat_id=CHANNEL_OTHER_ISSUES, text=f"{username}:\n{user_message}")
+        await send_problem_options(update, context)  # Invio banner con opzioni
 
     # Memorizza l'ID del messaggio e l'ID dell'utente
     user_requests[message.message_id] = user_id
 
     logger.info(f"Messaggio smistato da {username} al canale corretto.")
+
+async def send_problem_options(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Invia un banner con tre opzioni di problema."""
+    keyboard = [
+        [InlineKeyboardButton("Tempo extra", callback_data="extra_time")],
+        [InlineKeyboardButton("Non riesco ad entrare", callback_data="remote_open")],
+        [InlineKeyboardButton("Altro", callback_data="other_issues")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await update.message.reply_text(
+        "Non sono riuscito a capire il tuo problema. Seleziona una delle seguenti opzioni:",
+        reply_markup=reply_markup
+    )
+
+async def handle_problem_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Gestisce la selezione dell'utente dalle opzioni del banner."""
+    query = update.callback_query
+    await query.answer()  # Conferma che il bottone è stato premuto
+
+    user_id = query.from_user.id
+    username = f"@{query.from_user.username}" if query.from_user.username else query.from_user.full_name
+
+    if query.data == "extra_time":
+        await query.edit_message_text("Hai selezionato: Tempo extra. La tua richiesta sarà elaborata.")
+        await context.bot.send_message(chat_id=CHANNEL_EXTRA_TIME, text=f"Richiesta da {username}: Tempo extra.")
+    elif query.data == "remote_open":
+        await query.edit_message_text("Hai selezionato: Non riesco ad entrare. La tua richiesta sarà elaborata.")
+        await context.bot.send_message(chat_id=CHANNEL_REMOTE_OPEN, text=f"Richiesta da {username}: Non riesco ad entrare.")
+    elif query.data == "other_issues":
+        await query.edit_message_text("Hai selezionato: Altro. La tua richiesta sarà elaborata.")
+        await context.bot.send_message(chat_id=CHANNEL_OTHER_ISSUES, text=f"Richiesta da {username}: Altro.")
 
 async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Gestisce le risposte degli amministratori e le inoltra all'utente originale tramite il bot."""
@@ -93,6 +126,9 @@ def main():
 
     # Gestore delle risposte degli amministratori (anche per media)
     application.add_handler(MessageHandler(filters.TEXT & filters.REPLY, handle_response))
+
+    # Gestore dei callback dei pulsanti
+    application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, handle_problem_selection))
 
     # Gestore degli errori
     application.add_error_handler(error_handler)
