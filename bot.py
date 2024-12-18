@@ -81,14 +81,14 @@ async def handle_problem_selection(update: Update, context: ContextTypes.DEFAULT
     username = f"@{user.username}" if user.username else user.full_name
 
     if query.data == "extra_time":
-        await query.edit_message_text("Hai selezionato: Tempo extra. La tua richiesta sarà elaborata.")
-        await context.bot.send_message(chat_id=CHANNEL_EXTRA_TIME, text=f"Un utente ha selezionato 'Tempo extra': {username}")
+        await query.edit_message_text("Hai chiesto tempo extra. La tua richiesta sarà elaborata.")
+        await context.bot.send_message(chat_id=CHANNEL_EXTRA_TIME, text=f"{username} ha chisto tempo extra")
     elif query.data == "remote_open":
         await query.edit_message_text("Hai selezionato: Non riesco ad entrare. La tua richiesta sarà elaborata.")
-        await context.bot.send_message(chat_id=CHANNEL_REMOTE_OPEN, text=f"Un utente ha selezionato 'Non riesco ad entrare': {username}")
+        await context.bot.send_message(chat_id=CHANNEL_REMOTE_OPEN, text=f"{username} ha problemi ad accedere")
     elif query.data == "other_issues":
         await query.edit_message_text("Hai selezionato: Altro. La tua richiesta sarà elaborata.")
-        await context.bot.send_message(chat_id=CHANNEL_OTHER_ISSUES, text=f"Un utente ha selezionato 'Altro': {username}")
+        await context.bot.send_message(chat_id=CHANNEL_OTHER_ISSUES, text=f"{username} ha segnalato un problma")
 
 async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Gestisce le risposte degli amministratori e le inoltra all'utente originale tramite il bot."""
