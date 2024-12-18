@@ -1,40 +1,110 @@
-import logging
-from telegram import Update
-from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
+from telegram import Update, Message
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+import logging, passkey
 
-# Configura il logging
-logging.basicConfig(level=logging.INFO)  # Usa INFO per log più concisi
+# Token del bot fornito da BotFather
+BOT_TOKEN = (passkey.TOKEN)
+
+# ID dei canali di smistamento
+CHANNEL_EXTRA_TIME = '-1002403326958'
+CHANNEL_REMOTE_OPEN = '-1002402258086'
+CHANNEL_OTHER_ISSUES = '-1002350584252'
+
+# Configurazione logging
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Funzione per gestire i messaggi
+# Dizionario per tracciare gli utenti che inviano richieste
+user_requests = {}
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Risponde al comando /start."""
+    await update.message.reply_text(
+        "Ciao! Sono il bot per la gestione degli appartamenti. Inviami un messaggio "
+        "con la tua richiesta e lo smisterò al canale appropriato."
+    )
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message:
-        # Log dei messaggi ricevuti
-        logger.info(f"Messaggio ricevuto nella chat con ID: {update.message.chat.id}")
+    """Gestisce i messaggi ricevuti direttamente dagli utenti e li smista nei canali appropriati."""
+    if not update.message:
+        logger.warning("Aggiornamento ricevuto senza un messaggio valido.")
+        return
 
-        # Verifica se il messaggio è una reply
-        if update.message.reply_to_message:  # Se il messaggio è una reply
-            logger.info("Il messaggio è una reply. Nessuna azione intrapresa.")
-            return  # Non fare nulla se è una reply
+    user_message = ""
+
+    # Verifica il tipo di messaggio
+    if update.message.text and update.message.text.strip():
+        user_message = update.message.text.lower().strip()
+    elif update.message.caption and update.message.caption.strip():
+        user_message = f"Messaggio con media: {update.message.caption.strip()}"
+    else:
+        user_message = "L'utente ha inviato un tipo di messaggio non riconosciuto."
+
+    user = update.message.from_user
+    username = f"@{user.username}" if user.username else user.full_name
+    user_id = user.id  # ID dell'utente che ha inviato il messaggio
+
+    # Smista il messaggio al canale appropriato
+    if any(keyword in user_message for keyword in ['tempo', 'pulire', 'extra']):
+        message = await context.bot.send_message(chat_id=CHANNEL_EXTRA_TIME, text=f"{username}:\n{user_message}")
+    elif any(keyword in user_message for keyword in ['apri', 'apertura', 'remoto']):
+        message = await context.bot.send_message(chat_id=CHANNEL_REMOTE_OPEN, text=f"{username}:\n{user_message}")
+    else:
+        message = await context.bot.send_message(chat_id=CHANNEL_OTHER_ISSUES, text=f"{username}:\n{user_message}")
+
+    # Memorizza l'ID del messaggio e l'ID dell'utente
+    user_requests[message.message_id] = user_id
+
+    logger.info(f"Messaggio smistato da {username} al canale corretto.")
+
+async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Gestisce le risposte degli amministratori e le inoltra all'utente originale tramite il bot."""
+    if update.channel_post:
+        channel_message = update.channel_post
+
+        # Controlla se il messaggio è una risposta
+        if channel_message.reply_to_message and channel_message.reply_to_message.message_id in user_requests:
+            original_message_id = channel_message.reply_to_message.message_id
+            original_user_id = user_requests[original_message_id]
+
+            # Invia la risposta all'utente originario
+            await context.bot.send_message(
+                chat_id=original_user_id,
+                text=f"{channel_message.text}"
+            )
         else:
-            # Risponde con un messaggio di avviso
-            logger.info("Il messaggio NON è una reply, invio risposta...")
-            await update.message.reply_text("Questo messaggio non è una reply")
+            # Se il messaggio non è valido, invia un avviso nel canale
+            await context.bot.send_message(
+                chat_id=channel_message.chat_id,  # ID del canale dove è stato inviato il messaggio
+                text="Non è un messaggio valido"
+            )
+            logger.warning("Messaggio di risposta ricevuto senza riferimento a un messaggio originale.")
+    else:
+        logger.warning("Messaggio non valido ricevuto.")
 
-# Funzione principale per avviare il bot
+
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
+    """Gestisce errori ed eccezioni."""
+    logger.error("Eccezione durante l'aggiornamento: %s", context.error)
+
 def main():
-    # Inserisci il tuo token fornito da BotFather
-    BOT_TOKEN = "7730646498:AAEvHUQjZSc_5OHoXiCwm64SDceyBEJO2go"
+    """Avvia il bot."""
+    application = Application.builder().token(BOT_TOKEN).build()
 
-    # Crea l'applicazione del bot
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
+    # Gestore dei comandi
+    application.add_handler(CommandHandler("start", start))
 
-    # Aggiungi l'handler per qualsiasi tipo di messaggio (non comandi)
-    app.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, handle_message))
+    # Gestore dei messaggi ricevuti dalla chat del bot
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.REPLY, handle_message))
 
-    # Avvia il bot
-    logger.info("Bot in esecuzione...")
-    app.run_polling()
+    # Gestore delle risposte degli amministratori (anche per media)
+    application.add_handler(MessageHandler(filters.TEXT & filters.REPLY, handle_response))
 
-if __name__ == "__main__":
+    # Gestore degli errori
+    application.add_error_handler(error_handler)
+
+    application.run_polling(allowed_updates=Update.ALL_TYPES)
+
+if __name__ == '__main__':
     main()
+
