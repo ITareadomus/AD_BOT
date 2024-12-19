@@ -11,13 +11,18 @@ CHANNEL_EXTRA_TIME = '-1002403326958'
 CHANNEL_REMOTE_OPEN = '-1002402258086'
 CHANNEL_OTHER_ISSUES = '-1002350584252'
 
+# Parole chiave per lo smistamento automatico
+KEYWORDS_EXTRA_TIME = ['tempo extra', 'richiesta tempo extra']
+KEYWORDS_REMOTE_OPEN = ['non riesco ad entrare', 'problema apertura porta', 'accesso remoto']
+
 # Configurazione logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Dizionari per tracciare le richieste e le categorie assegnate
+# Dizionari per tracciare le richieste, le categorie e i messaggi nei canali
 user_requests = {}
 user_categories = {}
+channel_messages = {}
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Risponde al comando /start."""
@@ -43,19 +48,19 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         category, timestamp = user_categories[user_id]
         # Se la finestra temporale di 1 minuto è ancora valida, smista automaticamente
         if current_time - timestamp < 60:
-            await smista_messaggio(category, username, user_message, context)
+            await smista_messaggio(category, username, user_message, context, user_id)
             return
         else:
             # Scade la categoria assegnata
             del user_categories[user_id]
 
     # Verifica se il messaggio contiene le parole chiave per lo smistamento automatico
-    if any(keyword in user_message for keyword in ['tempo', 'pulire', 'extra']):
-        await smista_messaggio("extra_time", username, user_message, context)
+    if any(keyword in user_message for keyword in KEYWORDS_EXTRA_TIME):
+        await smista_messaggio("extra_time", username, user_message, context, user_id)
         user_categories[user_id] = ("extra_time", current_time)
         return
-    elif any(keyword in user_message for keyword in ['apri', 'apertura', 'remoto']):
-        await smista_messaggio("remote_open", username, user_message, context)
+    elif any(keyword in user_message for keyword in KEYWORDS_REMOTE_OPEN):
+        await smista_messaggio("remote_open", username, user_message, context, user_id)
         user_categories[user_id] = ("remote_open", current_time)
         return
 
@@ -103,17 +108,45 @@ async def handle_button_click(update: Update, context: ContextTypes.DEFAULT_TYPE
     user_categories[user_id] = (action, time.time())
 
     # Smista il messaggio in base all'azione scelta
-    await smista_messaggio(action, username, user_message, context)
+    await smista_messaggio(action, username, user_message, context, user_id)
     await query.edit_message_text(f"Hai selezionato: {action.replace('_', ' ').capitalize()}.")
 
-async def smista_messaggio(category, username, user_message, context):
-    """Smista il messaggio al canale appropriato."""
+async def smista_messaggio(category, username, user_message, context, user_id):
+    """Smista il messaggio al canale appropriato e memorizza l'associazione per le risposte."""
     if category == "extra_time":
-        await context.bot.send_message(chat_id=CHANNEL_EXTRA_TIME, text=f"{username}:\n{user_message}")
+        sent_message = await context.bot.send_message(chat_id=CHANNEL_EXTRA_TIME, text=f"{username}:
+{user_message}")
     elif category == "remote_open":
-        await context.bot.send_message(chat_id=CHANNEL_REMOTE_OPEN, text=f"{username}:\n{user_message}")
+        sent_message = await context.bot.send_message(chat_id=CHANNEL_REMOTE_OPEN, text=f"{username}:
+{user_message}")
     elif category == "other_issues":
-        await context.bot.send_message(chat_id=CHANNEL_OTHER_ISSUES, text=f"{username}:\n{user_message}")
+        sent_message = await context.bot.send_message(chat_id=CHANNEL_OTHER_ISSUES, text=f"{username}:
+{user_message}")
+
+    # Memorizza l'ID del messaggio nel canale e associa l'utente originale
+    channel_messages[sent_message.message_id] = user_id
+
+async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Gestisce le risposte degli amministratori e le inoltra all'utente originale tramite il bot."""
+    if update.channel_post:
+        channel_message = update.channel_post
+
+        # Controlla se il messaggio è una risposta
+        if channel_message.reply_to_message:
+            reply_message_id = channel_message.reply_to_message.message_id
+
+            if reply_message_id in channel_messages:
+                original_user_id = channel_messages[reply_message_id]
+
+                # Invia la risposta all'utente originale
+                await context.bot.send_message(
+                    chat_id=original_user_id,
+                    text=f"Risposta dal canale:
+{channel_message.text}"
+                )
+                logger.info(f"Risposta inviata all'utente con ID: {original_user_id}")
+            else:
+                logger.warning("Risposta a un messaggio non tracciato.")
 
 async def check_messages(context: ContextTypes.DEFAULT_TYPE):
     """Verifica se ci sono messaggi scaduti da smistare automaticamente nel canale 'other issues'."""
@@ -124,7 +157,8 @@ async def check_messages(context: ContextTypes.DEFAULT_TYPE):
         if current_time - user_data["timestamp"] > 60:
             username = user_data["username"]
             user_message = user_data["user_message"]
-            await smista_messaggio("other_issues", username, user_message, context)
+            user_id = user_data["user_id"]
+            await smista_messaggio("other_issues", username, user_message, context, user_id)
             to_remove.append(message_id)
 
     for message_id in to_remove:
@@ -143,6 +177,9 @@ def main():
 
     # Gestore dei messaggi ricevuti dalla chat del bot
     application.add_handler(MessageHandler(filters.TEXT & ~filters.REPLY, handle_message))
+
+    # Gestore delle risposte dai canali
+    application.add_handler(MessageHandler(filters.UpdateType.CHANNEL_POST, handle_response))
 
     # Gestore del clic sui pulsanti
     application.add_handler(CallbackQueryHandler(handle_button_click))
