@@ -1,10 +1,9 @@
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
-import logging
-import passkey
+import logging, passkey
 
 # Token del bot fornito da BotFather
-BOT_TOKEN = passkey.TOKEN
+BOT_TOKEN = (passkey.TOKEN)
 
 # ID dei canali di smistamento
 CHANNEL_EXTRA_TIME = '-1002403326958'
@@ -12,10 +11,7 @@ CHANNEL_REMOTE_OPEN = '-1002402258086'
 CHANNEL_OTHER_ISSUES = '-1002350584252'
 
 # Configurazione logging
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Dizionario per tracciare gli utenti che inviano richieste
@@ -29,7 +25,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Gestisce i messaggi degli utenti e invia un banner con opzioni."""
+    """Gestisce i messaggi ricevuti direttamente dagli utenti e invia un banner con opzioni."""
     if not update.message:
         logger.warning("Aggiornamento ricevuto senza un messaggio valido.")
         return
@@ -37,7 +33,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text.lower().strip()
     user = update.message.from_user
     username = f"@{user.username}" if user.username else user.full_name
-    user_id = user.id
+    user_id = user.id  # ID dell'utente che ha inviato il messaggio
 
     # Genera un banner con opzioni
     keyboard = [
@@ -60,68 +56,52 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "user_id": user_id,
         "user_message": user_message,
         "username": username
-    }, name=str(user_id))
+    })
 
 async def handle_button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Gestisce il clic sui pulsanti del banner."""
     query = update.callback_query
-    await query.answer()
+    await query.answer()  # Conferma che il bottone è stato premuto
 
-    try:
-        action, user_id = query.data.split('|')
-        user_id = int(user_id)
+    data = query.data.split('|')
+    action = data[0]
+    user_id = int(data[1])
 
-        # Smista il messaggio in base all'azione scelta
-        if action == "extra_time":
-            channel_id, message = CHANNEL_EXTRA_TIME, "Tempo extra"
-        elif action == "remote_open":
-            channel_id, message = CHANNEL_REMOTE_OPEN, "Non riesco ad entrare"
-        elif action == "other_issues":
-            channel_id, message = CHANNEL_OTHER_ISSUES, "Altro"
-        else:
-            await query.edit_message_text("Opzione non valida.")
-            return
+    # Smista il messaggio in base all'azione scelta
+    if action == "extra_time":
+        await context.bot.send_message(chat_id=CHANNEL_EXTRA_TIME, text=f"{query.from_user.mention_html()} ha selezionato: Tempo extra.")
+        await query.edit_message_text("Hai selezionato: Tempo extra.")
+    elif action == "remote_open":
+        await context.bot.send_message(chat_id=CHANNEL_REMOTE_OPEN, text=f"{query.from_user.mention_html()} ha selezionato: Non riesco ad entrare.")
+        await query.edit_message_text("Hai selezionato: Non riesco ad entrare.")
+    elif action == "other_issues":
+        await context.bot.send_message(chat_id=CHANNEL_OTHER_ISSUES, text=f"{query.from_user.mention_html()} ha selezionato: Altro.")
+        await query.edit_message_text("Hai selezionato: Altro.")
 
-        await context.bot.send_message(
-            chat_id=channel_id,
-            text=f"{query.from_user.mention_html()} ha selezionato: {message}.",
-            parse_mode='HTML'
-        )
-        await query.edit_message_text(f"Hai selezionato: {message}.")
-
-        # Rimuovi il job associato, se esiste
-        jobs = context.job_queue.get_jobs_by_name(str(user_id))
-        for job in jobs:
-            job.schedule_removal()
-
-    except Exception as e:
-        logger.error("Errore durante il click del pulsante: %s", e)
+    # Rimuovi il job associato, se esiste
+    jobs = context.job_queue.get_jobs_by_name(str(user_id))
+    for job in jobs:
+        job.schedule_removal()
 
 async def auto_forward_message(context: ContextTypes.DEFAULT_TYPE):
     """Smista automaticamente il messaggio se l'utente non seleziona un'opzione entro un minuto."""
-    try:
-        data = context.job.data
-        message_id = data['message_id']
-        user_id = data['user_id']
-        user_message = data['user_message']
-        username = data['username']
+    data = context.job.data
+    message_id = data['message_id']
+    user_id = data['user_id']
+    user_message = data['user_message']
+    username = data['username']
 
-        if message_id in user_requests:
-            del user_requests[message_id]
+    # Verifica se il messaggio è già stato smistato
+    if message_id in user_requests:
+        # Rimuove il riferimento al messaggio
+        del user_requests[message_id]
 
-            # Invia al canale appropriato
-            await context.bot.send_message(
-                chat_id=CHANNEL_OTHER_ISSUES,
-                text=f"{username}:
-{user_message}"
-            )
-    except Exception as e:
-        logger.error("Errore durante lo smistamento automatico: %s", e)
+        # Invia al canale appropriato
+        await context.bot.send_message(chat_id=CHANNEL_OTHER_ISSUES, text=f"{username}:\n{user_message}")
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     """Gestisce errori ed eccezioni."""
     logger.error("Eccezione durante l'aggiornamento: %s", context.error)
-
 
 def main():
     """Avvia il bot."""
@@ -140,7 +120,6 @@ def main():
     application.add_error_handler(error_handler)
 
     application.run_polling(allowed_updates=Update.ALL_TYPES)
-
 
 if __name__ == '__main__':
     main()
