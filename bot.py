@@ -42,11 +42,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Verifica se il messaggio contiene le parole chiave per lo smistamento automatico
     if any(keyword in user_message for keyword in KEYWORDS_EXTRA_TIME):
         await context.bot.send_message(chat_id=CHANNEL_EXTRA_TIME, text=f"{username}:\n{user_message}")
-        await update.message.reply_text("Il tuo messaggio è stato smistato al canale 'Tempo extra'.")
         return
     elif any(keyword in user_message for keyword in KEYWORDS_REMOTE_OPEN):
         await context.bot.send_message(chat_id=CHANNEL_REMOTE_OPEN, text=f"{username}:\n{user_message}")
-        await update.message.reply_text("Il tuo messaggio è stato smistato al canale 'Non riesco ad entrare'.")
         return
 
     # Se il messaggio non contiene le parole chiave specifiche, invia il menu di selezione
