@@ -1,10 +1,10 @@
-from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, Message
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 import logging, passkey
 import time
 
 # Token del bot fornito da BotFather
-BOT_TOKEN = (passkey.TOKEN)
+BOT_TOKEN = passkey.TOKEN
 
 # ID dei canali di smistamento
 CHANNEL_EXTRA_TIME = '-1002403326958'
@@ -119,6 +119,36 @@ async def smista_messaggio(category, username, user_message, context):
     elif category == "other_issues":
         await context.bot.send_message(chat_id=CHANNEL_OTHER_ISSUES, text=f"{username}:\n{user_message}")
 
+async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Gestisce le risposte degli amministratori e le inoltra all'utente originale tramite il bot."""
+    if update.channel_post:
+        channel_message = update.channel_post
+
+        # Controlla se il messaggio è una risposta
+        if channel_message.reply_to_message:
+            if channel_message.reply_to_message.message_id in user_requests:
+                original_message_id = channel_message.reply_to_message.message_id
+                original_user_id = user_requests[original_message_id]
+
+                # Invia la risposta all'utente originario
+                await context.bot.send_message(
+                    chat_id=original_user_id,
+                    text=f"Risposta dal canale:\n{channel_message.text}"
+                )
+                logger.info(f"Risposta inviata all'utente con ID: {original_user_id}")
+            else:
+                logger.warning("Messaggio di risposta ricevuto senza riferimento a un messaggio originale valido.")
+                await context.bot.send_message(
+                    chat_id=channel_message.chat_id,
+                    text="⚠️ ATTENZIONE, IL MESSAGGIO NON È STATO INVIATO PERCHÈ NON È UNA RISPOSTA A UN ALTRO MESSAGGIO! ⚠️"
+                )
+        else:
+            logger.warning("Messaggio non è una risposta valida.")
+            await context.bot.send_message(
+                chat_id=channel_message.chat_id,
+                text="⚠️ ATTENZIONE, IL MESSAGGIO NON È STATO INVIATO PERCHÈ NON È UNA RISPOSTA A UN ALTRO MESSAGGIO! ⚠️"
+            )
+
 async def check_messages(context: ContextTypes.DEFAULT_TYPE):
     """Verifica se ci sono messaggi scaduti da smistare automaticamente nel canale 'other issues'."""
     current_time = time.time()
@@ -148,6 +178,9 @@ def main():
     # Gestore dei messaggi ricevuti dalla chat del bot
     application.add_handler(MessageHandler(filters.TEXT & ~filters.REPLY, handle_message))
 
+    # Gestore delle risposte degli amministratori
+    application.add_handler(MessageHandler(filters.TEXT & filters.REPLY, handle_response))
+
     # Gestore del clic sui pulsanti
     application.add_handler(CallbackQueryHandler(handle_button_click))
 
@@ -161,3 +194,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
