@@ -28,8 +28,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Gestisce i messaggi ricevuti direttamente dagli utenti e li smista nei canali appropriati."""
     if not update.message:
         logger.warning("Aggiornamento ricevuto senza un messaggio valido.")
-        return
-
         await context.bot.send_message(
             chat_id=update.message.chat_id,
             text="Il messaggio non è valido !!"
