@@ -128,21 +128,44 @@ async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.channel_post:
         channel_message = update.channel_post
 
+        # Logga l'ID del canale di destinazione
+        logger.info(f"Canale di destinazione: {channel_message.chat_id}")
+
         # Controlla se il messaggio è una risposta
         if channel_message.reply_to_message:
-            reply_message_id = channel_message.reply_to_message.message_id
+            logger.info(f"Risposta collegata al messaggio ID: {channel_message.reply_to_message.message_id}")
 
-            if reply_message_id in channel_messages:
-                original_user_id = channel_messages[reply_message_id]
+            if channel_message.reply_to_message.message_id in user_requests:
+                original_message_id = channel_message.reply_to_message.message_id
+                original_user_id = user_requests[original_message_id]
 
-                # Invia la risposta all'utente originale
+                # Invia la risposta all'utente originario
                 await context.bot.send_message(
                     chat_id=original_user_id,
-                    text=f"Risposta dal canale:{channel_message.text}"
+                    text=f"{channel_message.text}"
                 )
                 logger.info(f"Risposta inviata all'utente con ID: {original_user_id}")
             else:
-                logger.warning("Risposta a un messaggio non tracciato.")
+                logger.warning("Messaggio di risposta ricevuto senza riferimento a un messaggio originale valido.")
+                # Invio di un avviso al canale
+                await context.bot.send_message(
+                    chat_id=channel_message.chat_id,
+                    text="⚠️ ATTENZIONE, IL MESSAGGIO NON È STATO INVIATO PERCHÈ NON È UNA RISPOSTA A UN ALTRO MESSAGGIO! ⚠️"
+                )
+        else:
+            logger.warning("Messaggio non è una risposta valida.")
+            # Invio di un avviso al canale
+            await context.bot.send_message(
+                chat_id=channel_message.chat_id,
+                text="⚠️ ATTENZIONE, IL MESSAGGIO NON È STATO INVIATO PERCHÈ NON È UNA RISPOSTA A UN ALTRO MESSAGGIO! ⚠️"
+            )
+    else:
+        logger.warning("Messaggio non valido ricevuto.")
+        # Invio di un avviso al canale
+        await context.bot.send_message(
+            chat_id=update.channel_post.chat_id,
+            text="⚠️ ATTENZIONE, IL MESSAGGIO NON È STATO INVIATO PERCHÈ NON È UNA RISPOSTA A UN ALTRO MESSAGGIO! ⚠️"
+        )
 
 async def check_messages(context: ContextTypes.DEFAULT_TYPE):
     """Verifica se ci sono messaggi scaduti da smistare automaticamente nel canale 'other issues'."""
