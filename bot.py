@@ -69,7 +69,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     }
 
     # Avvia un job per l'auto-smistamento (dopo 1 minuto)
-    context.job_queue.run_once(auto_forward_message, 10, data={"message_id": sent_message.message_id}, name=str(sent_message.message_id))
+    # Usa il job queue direttamente dal contesto
+    job_queue = context.job_queue
+    job_queue.run_once(auto_forward_message, 60, data={"message_id": sent_message.message_id}, name=str(sent_message.message_id))
 
 async def handle_button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Gestisce il clic sui pulsanti del banner."""
