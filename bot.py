@@ -78,16 +78,13 @@ async def handle_button_click(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     # Smista il messaggio in base all'azione scelta
     if action == "extra_time":
-        await context.bot.send_message(chat_id=CHANNEL_EXTRA_TIME, text=f"{username}:
-{user_message}")
+        await context.bot.send_message(chat_id=CHANNEL_EXTRA_TIME, text=f"{username}:\n{user_message}")
         await query.edit_message_text("Hai selezionato: Tempo extra.")
     elif action == "remote_open":
-        await context.bot.send_message(chat_id=CHANNEL_REMOTE_OPEN, text=f"{username}:
-{user_message}")
+        await context.bot.send_message(chat_id=CHANNEL_REMOTE_OPEN, text=f"{username}:\n{user_message}")
         await query.edit_message_text("Hai selezionato: Non riesco ad entrare.")
     elif action == "other_issues":
-        await context.bot.send_message(chat_id=CHANNEL_OTHER_ISSUES, text=f"{username}:
-{user_message}")
+        await context.bot.send_message(chat_id=CHANNEL_OTHER_ISSUES, text=f"{username}:\n{user_message}")
         await query.edit_message_text("Hai selezionato: Altro.")
 
     # Rimuovi il job associato, se esiste
@@ -106,8 +103,7 @@ async def auto_forward_message(context: ContextTypes.DEFAULT_TYPE):
         username = user_data["username"]
 
         # Invia al canale di default
-        await context.bot.send_message(chat_id=CHANNEL_OTHER_ISSUES, text=f"{username}:
-{user_message}")
+        await context.bot.send_message(chat_id=CHANNEL_OTHER_ISSUES, text=f"{username}:\n{user_message}")
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     """Gestisce errori ed eccezioni."""
