@@ -10,6 +10,10 @@ CHANNEL_EXTRA_TIME = '-1002403326958'
 CHANNEL_REMOTE_OPEN = '-1002402258086'
 CHANNEL_OTHER_ISSUES = '-1002350584252'
 
+# Parole chiave per lo smistamento automatico
+KEYWORDS_EXTRA_TIME = ['tempo extra', 'richiesta tempo extra']
+KEYWORDS_REMOTE_OPEN = ['non riesco ad entrare', 'problema apertura porta', 'accesso remoto']
+
 # Configurazione logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -25,17 +29,27 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Gestisce i messaggi ricevuti direttamente dagli utenti e invia un banner con opzioni."""
+    """Gestisce i messaggi ricevuti direttamente dagli utenti e invia un banner con opzioni se necessario."""
     if not update.message:
         logger.warning("Aggiornamento ricevuto senza un messaggio valido.")
         return
 
-    user_message = update.message.text.strip()
+    user_message = update.message.text.strip().lower()
     user = update.message.from_user
     username = f"@{user.username}" if user.username else user.full_name
     user_id = user.id  # ID dell'utente che ha inviato il messaggio
 
-    # Genera un banner con opzioni
+    # Verifica se il messaggio contiene le parole chiave per lo smistamento automatico
+    if any(keyword in user_message for keyword in KEYWORDS_EXTRA_TIME):
+        await context.bot.send_message(chat_id=CHANNEL_EXTRA_TIME, text=f"{username}:\n{user_message}")
+        await update.message.reply_text("Il tuo messaggio è stato smistato al canale 'Tempo extra'.")
+        return
+    elif any(keyword in user_message for keyword in KEYWORDS_REMOTE_OPEN):
+        await context.bot.send_message(chat_id=CHANNEL_REMOTE_OPEN, text=f"{username}:\n{user_message}")
+        await update.message.reply_text("Il tuo messaggio è stato smistato al canale 'Non riesco ad entrare'.")
+        return
+
+    # Se il messaggio non contiene le parole chiave specifiche, invia il menu di selezione
     keyboard = [
         [InlineKeyboardButton("Tempo extra", callback_data=f"extra_time|{user_id}")],
         [InlineKeyboardButton("Non riesco ad entrare", callback_data=f"remote_open|{user_id}")],
@@ -102,7 +116,7 @@ async def auto_forward_message(context: ContextTypes.DEFAULT_TYPE):
         user_message = user_data["user_message"]
         username = user_data["username"]
 
-        # Invia al canale di default
+        # Invia al canale di default "Altro" se non ci sono parole chiave corrispondenti
         await context.bot.send_message(chat_id=CHANNEL_OTHER_ISSUES, text=f"{username}:\n{user_message}")
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
