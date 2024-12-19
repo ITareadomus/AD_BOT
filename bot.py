@@ -14,7 +14,7 @@ CHANNEL_OTHER_ISSUES = '-1002350584252'
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Dizionario per tracciare gli utenti che inviano richieste
+# Dizionario per tracciare i messaggi degli utenti
 user_requests = {}
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -30,7 +30,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.warning("Aggiornamento ricevuto senza un messaggio valido.")
         return
 
-    user_message = update.message.text.lower().strip()
+    user_message = update.message.text.strip()
     user = update.message.from_user
     username = f"@{user.username}" if user.username else user.full_name
     user_id = user.id  # ID dell'utente che ha inviato il messaggio
@@ -43,20 +43,21 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    # Invia il banner e avvia il timer
+    # Invia il banner
     sent_message = await update.message.reply_text(
         "Non sono riuscito a capire il tuo problema. Seleziona una delle seguenti opzioni entro 1 minuto:",
         reply_markup=reply_markup
     )
 
-    # Salva i dettagli del messaggio e avvia un job per l'auto-smistamento
-    user_requests[sent_message.message_id] = user_id
-    context.job_queue.run_once(auto_forward_message, 60, data={
-        "message_id": sent_message.message_id,
+    # Salva i dettagli del messaggio
+    user_requests[sent_message.message_id] = {
         "user_id": user_id,
-        "user_message": user_message,
-        "username": username
-    })
+        "username": username,
+        "user_message": user_message
+    }
+
+    # Avvia un job per l'auto-smistamento
+    context.job_queue.run_once(auto_forward_message, 60, data={"message_id": sent_message.message_id}, name=str(sent_message.message_id))
 
 async def handle_button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Gestisce il clic sui pulsanti del banner."""
@@ -65,39 +66,48 @@ async def handle_button_click(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     data = query.data.split('|')
     action = data[0]
-    user_id = int(data[1])
+    message_id = int(query.message.message_id)
+
+    if message_id not in user_requests:
+        await query.edit_message_text("Il tempo per selezionare un'opzione è scaduto.")
+        return
+
+    user_data = user_requests.pop(message_id)
+    user_message = user_data["user_message"]
+    username = user_data["username"]
 
     # Smista il messaggio in base all'azione scelta
     if action == "extra_time":
-        await context.bot.send_message(chat_id=CHANNEL_EXTRA_TIME, text=f"{query.from_user.mention_html()} ha selezionato: Tempo extra.")
+        await context.bot.send_message(chat_id=CHANNEL_EXTRA_TIME, text=f"{username}:
+{user_message}")
         await query.edit_message_text("Hai selezionato: Tempo extra.")
     elif action == "remote_open":
-        await context.bot.send_message(chat_id=CHANNEL_REMOTE_OPEN, text=f"{query.from_user.mention_html()} ha selezionato: Non riesco ad entrare.")
+        await context.bot.send_message(chat_id=CHANNEL_REMOTE_OPEN, text=f"{username}:
+{user_message}")
         await query.edit_message_text("Hai selezionato: Non riesco ad entrare.")
     elif action == "other_issues":
-        await context.bot.send_message(chat_id=CHANNEL_OTHER_ISSUES, text=f"{query.from_user.mention_html()} ha selezionato: Altro.")
+        await context.bot.send_message(chat_id=CHANNEL_OTHER_ISSUES, text=f"{username}:
+{user_message}")
         await query.edit_message_text("Hai selezionato: Altro.")
 
     # Rimuovi il job associato, se esiste
-    jobs = context.job_queue.get_jobs_by_name(str(user_id))
+    jobs = context.job_queue.get_jobs_by_name(str(message_id))
     for job in jobs:
         job.schedule_removal()
 
 async def auto_forward_message(context: ContextTypes.DEFAULT_TYPE):
     """Smista automaticamente il messaggio se l'utente non seleziona un'opzione entro un minuto."""
-    data = context.job.data
-    message_id = data['message_id']
-    user_id = data['user_id']
-    user_message = data['user_message']
-    username = data['username']
+    job_data = context.job.data
+    message_id = job_data["message_id"]
 
-    # Verifica se il messaggio è già stato smistato
     if message_id in user_requests:
-        # Rimuove il riferimento al messaggio
-        del user_requests[message_id]
+        user_data = user_requests.pop(message_id)
+        user_message = user_data["user_message"]
+        username = user_data["username"]
 
-        # Invia al canale appropriato
-        await context.bot.send_message(chat_id=CHANNEL_OTHER_ISSUES, text=f"{username}:\n{user_message}")
+        # Invia al canale di default
+        await context.bot.send_message(chat_id=CHANNEL_OTHER_ISSUES, text=f"{username}:
+{user_message}")
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     """Gestisce errori ed eccezioni."""
