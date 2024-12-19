@@ -114,14 +114,11 @@ async def handle_button_click(update: Update, context: ContextTypes.DEFAULT_TYPE
 async def smista_messaggio(category, username, user_message, context, user_id):
     """Smista il messaggio al canale appropriato e memorizza l'associazione per le risposte."""
     if category == "extra_time":
-        sent_message = await context.bot.send_message(chat_id=CHANNEL_EXTRA_TIME, text=f"{username}:
-{user_message}")
+        sent_message = await context.bot.send_message(chat_id=CHANNEL_EXTRA_TIME, text=f"{username}:{user_message}")
     elif category == "remote_open":
-        sent_message = await context.bot.send_message(chat_id=CHANNEL_REMOTE_OPEN, text=f"{username}:
-{user_message}")
+        sent_message = await context.bot.send_message(chat_id=CHANNEL_REMOTE_OPEN, text=f"{username}:{user_message}")
     elif category == "other_issues":
-        sent_message = await context.bot.send_message(chat_id=CHANNEL_OTHER_ISSUES, text=f"{username}:
-{user_message}")
+        sent_message = await context.bot.send_message(chat_id=CHANNEL_OTHER_ISSUES, text=f"{username}:{user_message}")
 
     # Memorizza l'ID del messaggio nel canale e associa l'utente originale
     channel_messages[sent_message.message_id] = user_id
