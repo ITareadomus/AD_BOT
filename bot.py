@@ -19,8 +19,9 @@ KEYWORDS_REMOTE_OPEN = ['non riesco ad entrare', 'problema apertura porta', 'acc
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Dizionario per tracciare i messaggi degli utenti e i tempi di invio
+# Dizionari per tracciare le richieste e le categorie assegnate
 user_requests = {}
+user_categories = {}
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Risponde al comando /start."""
@@ -38,14 +39,28 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text.strip().lower()
     user = update.message.from_user
     username = f"@{user.username}" if user.username else user.full_name
-    user_id = user.id  # ID dell'utente che ha inviato il messaggio
+    user_id = user.id
+    current_time = time.time()
+
+    # Controlla se l'utente ha già una categoria assegnata
+    if user_id in user_categories:
+        category, timestamp = user_categories[user_id]
+        # Se la finestra temporale di 1 minuto è ancora valida, smista automaticamente
+        if current_time - timestamp < 60:
+            await smista_messaggio(category, username, user_message, context)
+            return
+        else:
+            # Scade la categoria assegnata
+            del user_categories[user_id]
 
     # Verifica se il messaggio contiene le parole chiave per lo smistamento automatico
     if any(keyword in user_message for keyword in KEYWORDS_EXTRA_TIME):
-        await context.bot.send_message(chat_id=CHANNEL_EXTRA_TIME, text=f"{username}:\n{user_message}")
+        await smista_messaggio("extra_time", username, user_message, context)
+        user_categories[user_id] = ("extra_time", current_time)
         return
     elif any(keyword in user_message for keyword in KEYWORDS_REMOTE_OPEN):
-        await context.bot.send_message(chat_id=CHANNEL_REMOTE_OPEN, text=f"{username}:\n{user_message}")
+        await smista_messaggio("remote_open", username, user_message, context)
+        user_categories[user_id] = ("remote_open", current_time)
         return
 
     # Se il messaggio non contiene le parole chiave specifiche, invia il menu di selezione
@@ -67,7 +82,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "user_id": user_id,
         "username": username,
         "user_message": user_message,
-        "timestamp": time.time()  # Tempo di invio del messaggio
+        "timestamp": current_time
     }
 
 async def handle_button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -86,20 +101,23 @@ async def handle_button_click(update: Update, context: ContextTypes.DEFAULT_TYPE
     user_data = user_requests.pop(message_id)
     user_message = user_data["user_message"]
     username = user_data["username"]
+    user_id = user_data["user_id"]
+
+    # Salva la categoria scelta e il timestamp
+    user_categories[user_id] = (action, time.time())
 
     # Smista il messaggio in base all'azione scelta
-    if action == "extra_time":
-        await context.bot.send_message(chat_id=CHANNEL_EXTRA_TIME, text=f"{username}:\n{user_message}")
-        await query.edit_message_text("Hai selezionato: Tempo extra.")
-    elif action == "remote_open":
-        await context.bot.send_message(chat_id=CHANNEL_REMOTE_OPEN, text=f"{username}:\n{user_message}")
-        await query.edit_message_text("Hai selezionato: Non riesco ad entrare.")
-    elif action == "other_issues":
-        await context.bot.send_message(chat_id=CHANNEL_OTHER_ISSUES, text=f"{username}:\n{user_message}")
-        await query.edit_message_text("Hai selezionato: Altro.")
+    await smista_messaggio(action, username, user_message, context)
+    await query.edit_message_text(f"Hai selezionato: {action.replace('_', ' ').capitalize()}.")
 
-    # Rimuovi il messaggio dalla lista se l'utente ha selezionato un'opzione
-    del user_requests[message_id]
+async def smista_messaggio(category, username, user_message, context):
+    """Smista il messaggio al canale appropriato."""
+    if category == "extra_time":
+        await context.bot.send_message(chat_id=CHANNEL_EXTRA_TIME, text=f"{username}:\n{user_message}")
+    elif category == "remote_open":
+        await context.bot.send_message(chat_id=CHANNEL_REMOTE_OPEN, text=f"{username}:\n{user_message}")
+    elif category == "other_issues":
+        await context.bot.send_message(chat_id=CHANNEL_OTHER_ISSUES, text=f"{username}:\n{user_message}")
 
 async def check_messages(context: ContextTypes.DEFAULT_TYPE):
     """Verifica se ci sono messaggi scaduti da smistare automaticamente nel canale 'other issues'."""
@@ -107,14 +125,12 @@ async def check_messages(context: ContextTypes.DEFAULT_TYPE):
     to_remove = []
 
     for message_id, user_data in user_requests.items():
-        # Se è passato più di 60 secondi dal tempo di invio del messaggio
         if current_time - user_data["timestamp"] > 60:
             username = user_data["username"]
             user_message = user_data["user_message"]
-            await context.bot.send_message(chat_id=CHANNEL_OTHER_ISSUES, text=f"{username}:\n{user_message}")
+            await smista_messaggio("other_issues", username, user_message, context)
             to_remove.append(message_id)
 
-    # Rimuovi i messaggi scaduti dalla lista
     for message_id in to_remove:
         del user_requests[message_id]
 
@@ -145,3 +161,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
