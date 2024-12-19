@@ -25,77 +25,37 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "con la tua richiesta e lo smisterò al canale appropriato."
     )
 
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Gestisce i messaggi ricevuti direttamente dagli utenti e li smista nei canali appropriati."""
-    if not update.message:
-        logger.warning("Aggiornamento ricevuto senza un messaggio valido.")
-        await context.bot.send_message(
-            chat_id=update.effective_chat.id,
-            text="⚠️ ATTENZIONE, IL MESSAGGIO NON È STATO INVIATO PERCHÈ NON È UNA RISPOSTA A UN ALTRO MESSAGGIO! ⚠️"
-        )
-        return
+async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Gestisce le risposte degli amministratori e le inoltra all'utente originale tramite il bot."""
+    if update.channel_post:
+        channel_message = update.channel_post
 
-    # Verifica il tipo di messaggio
-    if update.message.text and update.message.text.strip():
-        user_message = update.message.text.lower().strip()
-    elif update.message.caption and update.message.caption.strip():
-        user_message = f"Messaggio con media: {update.message.caption.strip()}"
-    else:
-        user_message = None
+        # Logga l'ID del canale di destinazione
+        logger.info(f"Canale di destinazione: {channel_message.chat_id}")
 
-    if not user_message:
-        logger.warning("Messaggio non valido inviato dall'utente.")
-        await context.bot.send_message(
-            chat_id=update.effective_chat.id,
-            text="⚠️ ATTENZIONE, IL MESSAGGIO NON È STATO INVIATO PERCHÈ NON È UNA RISPOSTA A UN ALTRO MESSAGGIO! ⚠️"
-        )
-        return
+        # Controlla se il messaggio è una risposta
+        if channel_message.reply_to_message:
+            logger.info(f"Risposta collegata al messaggio ID: {channel_message.reply_to_message.message_id}")
 
-    user = update.message.from_user
-    username = f"@{user.username}" if user.username else user.full_name
-    user_id = user.id
-    current_time = time.time()
+            if channel_message.reply_to_message.message_id in user_requests:
+                original_message_id = channel_message.reply_to_message.message_id
+                original_user_id = user_requests[original_message_id]
 
-    # Controlla se l'utente ha già una categoria assegnata
-    if user_id in user_categories:
-        category, timestamp = user_categories[user_id]
-        # Se la finestra temporale di 1 minuto è ancora valida, smista automaticamente
-        if current_time - timestamp < 60:
-            await smista_messaggio(category, username, user_message, context)
-            return
+                # Invia la risposta all'utente originario
+                await context.bot.send_message(
+                    chat_id=original_user_id,
+                    text=f"{channel_message.text}"
+                )
+                logger.info(f"Risposta inviata all'utente con ID: {original_user_id}")
+            else:
+                logger.warning("Messaggio di risposta ricevuto senza riferimento a un messaggio originale valido.")
         else:
-            # Scade la categoria assegnata del user_categories[user_id]
-            del user_categories[user_id]
-
-    # Verifica se il messaggio contiene le parole chiave per lo smistamento automatico
-    if any(keyword in user_message for keyword in ['tempo extra', 'richiesta tempo extra']):
-        await smista_messaggio("extra_time", username, user_message, context)
-        user_categories[user_id] = ("extra_time", current_time)
-        return
-    elif any(keyword in user_message for keyword in ['non riesco ad entrare', 'problema apertura porta', 'accesso remoto']):
-        await smista_messaggio("remote_open", username, user_message, context)
-        user_categories[user_id] = ("remote_open", current_time)
-        return
-
-    # Se il messaggio non contiene le parole chiave specifiche, invia il menu di selezione
-    keyboard = [
-        [InlineKeyboardButton("Tempo extra", callback_data=f"extra_time|{user_id}")],
-        [InlineKeyboardButton("Non riesco ad entrare", callback_data=f"remote_open|{user_id}")],
-        [InlineKeyboardButton("Altro", callback_data=f"other_issues|{user_id}")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    sent_message = await update.message.reply_text(
-        "Non sono riuscito a capire il tuo problema. Seleziona una delle seguenti opzioni entro 1 minuto:",
-        reply_markup=reply_markup
-    )
-
-    # Salva i dettagli del messaggio e il timestamp
-    user_requests[sent_message.message_id] = {
-        "user_id": user_id,
-        "username": username,
-        "user_message": user_message,
-        "timestamp": current_time
-    }
+            logger.warning("Messaggio normale non è una risposta valida.")
+            # Invio di un avviso al canale
+            await context.bot.send_message(
+                chat_id=channel_message.chat_id,
+                text="⚠️ ATTENZIONE, IL MESSAGGIO NON È STATO INVIATO PERCHÈ NON È UNA RISPOSTA A UN ALTRO MESSAGGIO! ⚠️"
+            )
 
 async def handle_button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Gestisce il clic sui pulsanti del banner."""
