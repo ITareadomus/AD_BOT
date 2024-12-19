@@ -62,35 +62,39 @@ async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.channel_post:
         channel_message = update.channel_post
 
-        # Controlla se il messaggio è una risposta
-        if channel_message.reply_to_message and channel_message.reply_to_message.message_id in user_requests:
-            original_message_id = channel_message.reply_to_message.message_id
-            original_user_id = user_requests[original_message_id]
+        # Logga l'ID del canale di destinazione
+        logger.info(f"Canale di destinazione: {channel_message.chat_id}")
 
-            # Invia la risposta all'utente originario
-            await context.bot.send_message(
-                chat_id=original_user_id,
-                text=f"{channel_message.text}"
-            )
-        else:
-            # Se il messaggio non è valido, invia un avviso nel canale
-            try:
-                # Log del chat_id del canale
-                logger.info(f"Canale di destinazione: {channel_message.chat_id}")
-                
-                # Invia il messaggio di avviso
+        # Controlla se il messaggio è una risposta
+        if channel_message.reply_to_message:
+            logger.info(f"Risposta collegata al messaggio ID: {channel_message.reply_to_message.message_id}")
+
+            if channel_message.reply_to_message.message_id in user_requests:
+                original_message_id = channel_message.reply_to_message.message_id
+                original_user_id = user_requests[original_message_id]
+
+                # Invia la risposta all'utente originario
                 await context.bot.send_message(
-                    chat_id=channel_message.chat_id,  # ID del canale dove è stato inviato il messaggio
+                    chat_id=original_user_id,
+                    text=f"{channel_message.text}"
+                )
+                logger.info(f"Risposta inviata all'utente con ID: {original_user_id}")
+            else:
+                logger.warning("Messaggio di risposta ricevuto senza riferimento a un messaggio originale valido.")
+                # Invio di un avviso al canale
+                await context.bot.send_message(
+                    chat_id=channel_message.chat_id,
                     text="Non è un messaggio valido"
                 )
-                logger.info("Messaggio di avviso inviato correttamente.")
-            except Exception as e:
-                # Gestisci eventuali errori durante l'invio del messaggio
-                logger.error(f"Errore durante l'invio del messaggio di avviso: {e}")
-            logger.warning("Messaggio di risposta ricevuto senza riferimento a un messaggio originale.")
+        else:
+            logger.warning("Messaggio non è una risposta valida.")
+            # Invio di un avviso al canale
+            await context.bot.send_message(
+                chat_id=channel_message.chat_id,
+                text="Non è un messaggio valido"
+            )
     else:
         logger.warning("Messaggio non valido ricevuto.")
-
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     """Gestisce errori ed eccezioni."""
