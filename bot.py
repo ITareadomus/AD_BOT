@@ -95,6 +95,11 @@ async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
     else:
         logger.warning("Messaggio non valido ricevuto.")
+        # Invio di un avviso al canale
+            await context.bot.send_message(
+                chat_id=channel_message.chat_id,
+                text="Non è un messaggio valido"
+            )
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     """Gestisce errori ed eccezioni."""
