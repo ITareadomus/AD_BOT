@@ -3,7 +3,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 import logging, passkey
 
 # Token del bot fornito da BotFather
-BOT_TOKEN = (passkey.TOKEN)
+BOT_TOKEN = passkey.TOKEN
 
 # ID dei canali di smistamento
 CHANNEL_EXTRA_TIME = '-1002403326958'
@@ -57,6 +57,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     logger.info(f"Messaggio smistato da {username} al canale corretto.")
 
+    # Invio del messaggio di avviso se il messaggio non è valido
+    if not message:
+        await context.bot.send_message(
+            chat_id=update.message.chat_id,
+            text="Il messaggio non è valido"
+        )
+
 async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Gestisce le risposte degli amministratori e le inoltra all'utente originale tramite il bot."""
     if update.channel_post:
@@ -84,22 +91,22 @@ async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 # Invio di un avviso al canale
                 await context.bot.send_message(
                     chat_id=channel_message.chat_id,
-                    text="Non è un messaggio valido"
+                    text="Il messaggio non è valido"
                 )
         else:
             logger.warning("Messaggio non è una risposta valida.")
             # Invio di un avviso al canale
             await context.bot.send_message(
                 chat_id=channel_message.chat_id,
-                text="Non è un messaggio valido"
+                text="Il messaggio non è valido"
             )
     else:
         logger.warning("Messaggio non valido ricevuto.")
         # Invio di un avviso al canale
-            await context.bot.send_message(
-                chat_id=channel_message.chat_id,
-                text="Non è un messaggio valido"
-            )
+        await context.bot.send_message(
+            chat_id=update.channel_post.chat_id,
+            text="Il messaggio non è valido"
+        )
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     """Gestisce errori ed eccezioni."""
