@@ -69,44 +69,47 @@ async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.channel_post:
         channel_message = update.channel_post
 
-        # Logga l'ID del canale di destinazione
-        logger.info(f"Canale di destinazione: {channel_message.chat_id}")
+        # Log dettagliato del messaggio ricevuto
+        logger.info(f"Messaggio ricevuto nel canale: {channel_message.to_dict()}")
 
-        # Controlla se il messaggio è una risposta
-        if channel_message.reply_to_message:
-            logger.info(f"Risposta collegata al messaggio ID: {channel_message.reply_to_message.message_id}")
+        # Verifica se il messaggio è una risposta
+        if channel_message.reply_to_message and channel_message.reply_to_message.message_id in user_requests:
+            logger.info("Risposta valida ricevuta. Procedo con l'inoltro all'utente originale.")
+            
+            original_message_id = channel_message.reply_to_message.message_id
+            original_user_id = user_requests[original_message_id]
 
-            if channel_message.reply_to_message.message_id in user_requests:
-                original_message_id = channel_message.reply_to_message.message_id
-                original_user_id = user_requests[original_message_id]
+            # Log ID dell'utente originale
+            logger.info(f"ID messaggio originale: {original_message_id}, ID utente originale: {original_user_id}")
 
-                # Invia la risposta all'utente originario
-                await context.bot.send_message(
+            # Invia la risposta all'utente originario
+            try:
+                response_message = await context.bot.send_message(
                     chat_id=original_user_id,
                     text=f"{channel_message.text}"
                 )
-                logger.info(f"Risposta inviata all'utente con ID: {original_user_id}")
-            else:
-                logger.warning("Messaggio di risposta ricevuto senza riferimento a un messaggio originale valido.")
-                # Invio di un avviso al canale
-                await context.bot.send_message(
-                    chat_id=channel_message.chat_id,
-                    text="Il messaggio non è valido"
-                )
+                logger.info(f"Risposta inviata con successo all'utente originale. ID messaggio: {response_message.message_id}")
+            except Exception as e:
+                logger.error(f"Errore durante l'invio della risposta all'utente originale: {e}")
         else:
-            logger.warning("Messaggio non è una risposta valida.")
-            # Invio di un avviso al canale
-            await context.bot.send_message(
-                chat_id=channel_message.chat_id,
-                text="Il messaggio non è valido"
-            )
+            logger.warning("Messaggio di risposta non valido o senza riferimento a un messaggio originale.")
+
+            # Log dettagliato dell'ID del canale e tentativo di invio messaggio di avviso
+            channel_id = channel_message.chat_id
+            logger.info(f"ID del canale rilevato per il messaggio non valido: {channel_id}")
+
+            # Invia messaggio di avviso al canale
+            try:
+                warning_message = await context.bot.send_message(
+                    chat_id=channel_id,
+                    text="Non è un messaggio valido."
+                )
+                logger.info(f"Messaggio di avviso inviato con successo. ID messaggio: {warning_message.message_id}")
+            except Exception as e:
+                logger.error(f"Errore durante l'invio del messaggio di avviso al canale: {e}")
     else:
-        logger.warning("Messaggio non valido ricevuto.")
-        # Invio di un avviso al canale
-        await context.bot.send_message(
-            chat_id=update.channel_post.chat_id,
-            text="Il messaggio non è valido"
-        )
+        logger.warning("Aggiornamento non contiene un post del canale.")
+
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     """Gestisce errori ed eccezioni."""
