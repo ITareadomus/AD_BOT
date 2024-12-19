@@ -30,7 +30,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.warning("Aggiornamento ricevuto senza un messaggio valido.")
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
-            text="ATTENZIONE MESSAGGIO NON VALIDO"
+            text="⚠️ ATTENZIONE, IL MESSAGGIO NON È STATO INVIATO PERCHÈ NON È UNA RISPOSTA A UN ALTRO MESSAGGIO! ⚠️"
         )
         return
 
@@ -46,7 +46,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.warning("Messaggio non valido inviato dall'utente.")
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
-            text="ATTENZIONE MESSAGGIO NON VALIDO"
+            text="⚠️ ATTENZIONE, IL MESSAGGIO NON È STATO INVIATO PERCHÈ NON È UNA RISPOSTA A UN ALTRO MESSAGGIO! ⚠️"
         )
         return
 
@@ -58,7 +58,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.warning("Impossibile identificare l'utente.")
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
-            text="ATTENZIONE MESSAGGIO NON VALIDO"
+            text="⚠️ ATTENZIONE, IL MESSAGGIO NON È STATO INVIATO PERCHÈ NON È UNA RISPOSTA A UN ALTRO MESSAGGIO! ⚠️"
         )
         return
 
@@ -104,21 +104,21 @@ async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 # Invio di un avviso al canale
                 await context.bot.send_message(
                     chat_id=channel_message.chat_id,
-                    text="ATTENZIONE MESSAGGIO NON VALIDO"
+                    text="⚠️ ATTENZIONE, IL MESSAGGIO NON È STATO INVIATO PERCHÈ NON È UNA RISPOSTA A UN ALTRO MESSAGGIO! ⚠️"
                 )
         else:
             logger.warning("Messaggio non è una risposta valida.")
             # Invio di un avviso al canale
             await context.bot.send_message(
                 chat_id=channel_message.chat_id,
-                text="ATTENZIONE MESSAGGIO NON VALIDO"
+                text="⚠️ ATTENZIONE, IL MESSAGGIO NON È STATO INVIATO PERCHÈ NON È UNA RISPOSTA A UN ALTRO MESSAGGIO! ⚠️"
             )
     else:
         logger.warning("Messaggio non valido ricevuto.")
         # Invio di un avviso al canale
         await context.bot.send_message(
             chat_id=update.channel_post.chat_id,
-            text="ATTENZIONE MESSAGGIO NON VALIDO"
+            text="⚠️ ATTENZIONE, IL MESSAGGIO NON È STATO INVIATO PERCHÈ NON È UNA RISPOSTA A UN ALTRO MESSAGGIO! ⚠️"
         )
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
