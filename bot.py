@@ -126,9 +126,11 @@ async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Controlla se il messaggio è una risposta
         if channel_message.reply_to_message:
-            if channel_message.reply_to_message.message_id in user_requests:
-                original_message_id = channel_message.reply_to_message.message_id
-                original_user_id = user_requests[original_message_id]
+            original_message_id = channel_message.reply_to_message.message_id
+
+            if original_message_id in user_requests:
+                original_user_data = user_requests[original_message_id]
+                original_user_id = original_user_data["user_id"]
 
                 # Invia la risposta all'utente originario
                 await context.bot.send_message(
@@ -138,10 +140,6 @@ async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 logger.info(f"Risposta inviata all'utente con ID: {original_user_id}")
             else:
                 logger.warning("Messaggio di risposta ricevuto senza riferimento a un messaggio originale valido.")
-                await context.bot.send_message(
-                    chat_id=channel_message.chat_id,
-                    text="⚠️ ATTENZIONE, IL MESSAGGIO NON È STATO INVIATO PERCHÈ NON È UNA RISPOSTA A UN ALTRO MESSAGGIO! ⚠️"
-                )
         else:
             logger.warning("Messaggio non è una risposta valida.")
             await context.bot.send_message(
@@ -194,4 +192,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
