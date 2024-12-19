@@ -1,6 +1,7 @@
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 import logging, passkey
+import time
 
 # Token del bot fornito da BotFather
 BOT_TOKEN = (passkey.TOKEN)
@@ -18,7 +19,7 @@ KEYWORDS_REMOTE_OPEN = ['non riesco ad entrare', 'problema apertura porta', 'acc
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Dizionario per tracciare i messaggi degli utenti
+# Dizionario per tracciare i messaggi degli utenti e i tempi di invio
 user_requests = {}
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -57,21 +58,17 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Invia il banner
     sent_message = await update.message.reply_text(
-        "Non sono riuscito a capire il tuo problema. Seleziona una delle seguenti opzioni entro 1 minuto:",
+        "Non sono riuscito a capire il tuo problema. Seleziona una delle seguenti opzioni entro 10 secondi:",
         reply_markup=reply_markup
     )
 
-    # Salva i dettagli del messaggio
+    # Salva i dettagli del messaggio e il timestamp
     user_requests[sent_message.message_id] = {
         "user_id": user_id,
         "username": username,
-        "user_message": user_message
+        "user_message": user_message,
+        "timestamp": time.time()  # Tempo di invio del messaggio
     }
-
-    # Avvia un job per l'auto-smistamento (dopo 1 minuto)
-    # Usa il job queue direttamente dal contesto
-    job_queue = context.job_queue
-    job_queue.run_once(auto_forward_message, 60, data={"message_id": sent_message.message_id}, name=str(sent_message.message_id))
 
 async def handle_button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Gestisce il clic sui pulsanti del banner."""
@@ -101,23 +98,25 @@ async def handle_button_click(update: Update, context: ContextTypes.DEFAULT_TYPE
         await context.bot.send_message(chat_id=CHANNEL_OTHER_ISSUES, text=f"{username}:\n{user_message}")
         await query.edit_message_text("Hai selezionato: Altro.")
 
-    # Rimuovi il job associato, se esiste
-    jobs = context.job_queue.get_jobs_by_name(str(message_id))
-    for job in jobs:
-        job.schedule_removal()
+    # Rimuovi il messaggio dalla lista se l'utente ha selezionato un'opzione
+    del user_requests[message_id]
 
-async def auto_forward_message(context: ContextTypes.DEFAULT_TYPE):
-    """Smista automaticamente il messaggio se l'utente non seleziona un'opzione entro un minuto."""
-    job_data = context.job.data
-    message_id = job_data["message_id"]
+async def check_messages(context: ContextTypes.DEFAULT_TYPE):
+    """Verifica se ci sono messaggi scaduti da smistare automaticamente nel canale 'other issues'."""
+    current_time = time.time()
+    to_remove = []
 
-    if message_id in user_requests:
-        user_data = user_requests.pop(message_id)
-        user_message = user_data["user_message"]
-        username = user_data["username"]
+    for message_id, user_data in user_requests.items():
+        # Se è passato più di 10 secondi dal tempo di invio del messaggio
+        if current_time - user_data["timestamp"] > 10:
+            username = user_data["username"]
+            user_message = user_data["user_message"]
+            await context.bot.send_message(chat_id=CHANNEL_OTHER_ISSUES, text=f"{username}:\n{user_message}")
+            to_remove.append(message_id)
 
-        # Invia al canale di default "Altro" se non ci sono parole chiave corrispondenti
-        await context.bot.send_message(chat_id=CHANNEL_OTHER_ISSUES, text=f"{username}:\n{user_message}")
+    # Rimuovi i messaggi scaduti dalla lista
+    for message_id in to_remove:
+        del user_requests[message_id]
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     """Gestisce errori ed eccezioni."""
@@ -138,6 +137,9 @@ def main():
 
     # Gestore degli errori
     application.add_error_handler(error_handler)
+
+    # Aggiungi un job che controlla ogni 5 secondi se ci sono messaggi scaduti (10 secondi totali)
+    application.job_queue.run_repeating(check_messages, interval=5, first=5)
 
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
