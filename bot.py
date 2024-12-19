@@ -58,7 +58,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Invia il banner
     sent_message = await update.message.reply_text(
-        "Non sono riuscito a capire il tuo problema. Seleziona una delle seguenti opzioni entro 10 secondi:",
+        "Non sono riuscito a capire il tuo problema. Seleziona una delle seguenti opzioni entro 1 minuto:",
         reply_markup=reply_markup
     )
 
@@ -107,8 +107,8 @@ async def check_messages(context: ContextTypes.DEFAULT_TYPE):
     to_remove = []
 
     for message_id, user_data in user_requests.items():
-        # Se è passato più di 10 secondi dal tempo di invio del messaggio
-        if current_time - user_data["timestamp"] > 10:
+        # Se è passato più di 60 secondi dal tempo di invio del messaggio
+        if current_time - user_data["timestamp"] > 60:
             username = user_data["username"]
             user_message = user_data["user_message"]
             await context.bot.send_message(chat_id=CHANNEL_OTHER_ISSUES, text=f"{username}:\n{user_message}")
@@ -138,7 +138,7 @@ def main():
     # Gestore degli errori
     application.add_error_handler(error_handler)
 
-    # Aggiungi un job che controlla ogni 5 secondi se ci sono messaggi scaduti (10 secondi totali)
+    # Aggiungi un job che controlla ogni 5 secondi se ci sono messaggi scaduti (60 secondi totali)
     application.job_queue.run_repeating(check_messages, interval=5, first=5)
 
     application.run_polling(allowed_updates=Update.ALL_TYPES)
