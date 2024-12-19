@@ -68,7 +68,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "user_message": user_message
     }
 
-    # Avvia un job per l'auto-smistamento
+    # Avvia un job per l'auto-smistamento (dopo 1 minuto)
     context.job_queue.run_once(auto_forward_message, 60, data={"message_id": sent_message.message_id}, name=str(sent_message.message_id))
 
 async def handle_button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
