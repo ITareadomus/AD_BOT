@@ -51,8 +51,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     user = update.message.from_user
-    username = f"@{user.username}" if user.username else user.full_name
-    user_id = user.id  # ID dell'utente che ha inviato il messaggio
+    if user:
+        username = f"@{user.username}" if user.username else user.full_name
+        user_id = user.id  # ID dell'utente che ha inviato il messaggio
+    else:
+        logger.warning("Impossibile identificare l'utente.")
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text="ATTENZIONE MESSAGGIO NON VALIDO"
+        )
+        return
 
     # Smista il messaggio al canale appropriato
     if any(keyword in user_message for keyword in ['tempo', 'pulire', 'extra']):
@@ -62,8 +70,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         channel_id = CHANNEL_OTHER_ISSUES
 
-    message = await context.bot.send_message(chat_id=channel_id, text=f"{username}:
-{user_message}")
+    message = await context.bot.send_message(chat_id=channel_id, text=f"{username}:\n{user_message}")
 
     # Memorizza l'ID del messaggio e l'ID dell'utente
     user_requests[message.message_id] = user_id
