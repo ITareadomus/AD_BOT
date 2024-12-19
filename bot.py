@@ -29,9 +29,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message:
         logger.warning("Aggiornamento ricevuto senza un messaggio valido.")
         await context.bot.send_message(
-            chat_id=update.message.chat_id,
-            text="Il messaggio non è valido !!"
+            chat_id=update.effective_chat.id,
+            text="ATTENZIONE MESSAGGIO NON VALIDO"
         )
+        return
 
     # Verifica il tipo di messaggio
     if update.message.text and update.message.text.strip():
@@ -39,7 +40,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif update.message.caption and update.message.caption.strip():
         user_message = f"Messaggio con media: {update.message.caption.strip()}"
     else:
-        user_message = "L'utente ha inviato un tipo di messaggio non riconosciuto."
+        user_message = None
+
+    if not user_message:
+        logger.warning("Messaggio non valido inviato dall'utente.")
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text="ATTENZIONE MESSAGGIO NON VALIDO"
+        )
+        return
 
     user = update.message.from_user
     username = f"@{user.username}" if user.username else user.full_name
@@ -47,23 +56,19 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Smista il messaggio al canale appropriato
     if any(keyword in user_message for keyword in ['tempo', 'pulire', 'extra']):
-        message = await context.bot.send_message(chat_id=CHANNEL_EXTRA_TIME, text=f"{username}:\n{user_message}")
+        channel_id = CHANNEL_EXTRA_TIME
     elif any(keyword in user_message for keyword in ['apri', 'apertura', 'remoto']):
-        message = await context.bot.send_message(chat_id=CHANNEL_REMOTE_OPEN, text=f"{username}:\n{user_message}")
+        channel_id = CHANNEL_REMOTE_OPEN
     else:
-        message = await context.bot.send_message(chat_id=CHANNEL_OTHER_ISSUES, text=f"{username}:\n{user_message}")
+        channel_id = CHANNEL_OTHER_ISSUES
+
+    message = await context.bot.send_message(chat_id=channel_id, text=f"{username}:
+{user_message}")
 
     # Memorizza l'ID del messaggio e l'ID dell'utente
     user_requests[message.message_id] = user_id
 
     logger.info(f"Messaggio smistato da {username} al canale corretto.")
-
-    # Invio del messaggio di avviso se il messaggio non è valido
-    if not message:
-        await context.bot.send_message(
-            chat_id=update.message.chat_id,
-            text="Il messaggio non è valido"
-        )
 
 async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Gestisce le risposte degli amministratori e le inoltra all'utente originale tramite il bot."""
@@ -92,21 +97,21 @@ async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 # Invio di un avviso al canale
                 await context.bot.send_message(
                     chat_id=channel_message.chat_id,
-                    text="Il messaggio non è valido"
+                    text="ATTENZIONE MESSAGGIO NON VALIDO"
                 )
         else:
             logger.warning("Messaggio non è una risposta valida.")
             # Invio di un avviso al canale
             await context.bot.send_message(
                 chat_id=channel_message.chat_id,
-                text="Il messaggio non è valido"
+                text="ATTENZIONE MESSAGGIO NON VALIDO"
             )
     else:
         logger.warning("Messaggio non valido ricevuto.")
         # Invio di un avviso al canale
         await context.bot.send_message(
             chat_id=update.channel_post.chat_id,
-            text="Il messaggio non è valido"
+            text="ATTENZIONE MESSAGGIO NON VALIDO"
         )
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
