@@ -138,8 +138,7 @@ async def handle_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 # Invia la risposta all'utente originale
                 await context.bot.send_message(
                     chat_id=original_user_id,
-                    text=f"Risposta dal canale:
-{channel_message.text}"
+                    text=f"Risposta dal canale:{channel_message.text}"
                 )
                 logger.info(f"Risposta inviata all'utente con ID: {original_user_id}")
             else:
