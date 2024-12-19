@@ -30,7 +30,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.warning("Aggiornamento ricevuto senza un messaggio valido.")
         return
 
-    user_message = "Messaggio non valido"
+        await context.bot.send_message(
+            chat_id=update.message.chat_id,
+            text="Il messaggio non è valido !!"
+        )
 
     # Verifica il tipo di messaggio
     if update.message.text and update.message.text.strip():
